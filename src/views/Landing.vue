@@ -6,14 +6,17 @@
         <a href="#advantages" @click.prevent="scrollTo('advantages')">产品优势</a><a href="#workflow"
           @click.prevent="scrollTo('workflow')">学习流程</a>
       </nav>
-      <router-link to="/login" class="button primary small-button">进入学习空间
+      <router-link to="/login" class="button primary small-button">
+        进入学习空间
         <AppIcon name="arrow" :size="16" />
       </router-link>
     </PublicHeader>
     <section class="landing-hero">
       <div class="hero-copy">
         <span class="eyebrow"><i class="dot cyan" />属于你的 AI 学习空间</span>
-        <h1>把零散知识，<br />连成你的<span>学习路径</span></h1>
+        <h1>把零散知识，<br />连成你的
+          <span>学习路径</span>
+        </h1>
         <p>从一份课堂讲义，到一次真正的理解。<br />让资料、提问、练习与复习，在这里连成一条线。</p>
         <div class="button-row">
           <button class="button primary" @click="experience">
@@ -23,12 +26,16 @@
             <AppIcon name="play" :size="16" />探索知序
           </a>
         </div>
-        <div class="hero-caption"><span>课程资料有序归档</span><span>学习记录持续积累</span></div>
+        <div class="hero-caption">
+          <span>课程资料有序归档</span>
+          <span>学习记录持续积累</span>
+        </div>
       </div>
       <div class="hero-visual">
         <KnowledgeGraph :selected="selected" @select="selected = $event.id" />
         <div class="floating-note">
-          <i class="dot amber" /> 从「特征值」到「理解矩阵」<small>让知识之间的连接清晰可见</small>
+          <i class="dot amber" /> 从「特征值」到「理解矩阵」
+          <small>让知识之间的连接清晰可见</small>
         </div>
       </div>
     </section>
@@ -42,13 +49,17 @@
           <p>{{ item.text }}</p>
           <div class="feature-preview" :class="item.icon">
             <template v-if="item.icon === 'file'">
-              <AppIcon name="file" /><span>线性代数 · 第三章讲义</span><span class="badge">已归档</span>
+              <AppIcon name="file" />
+              <span>线性代数 · 第三章讲义</span>
+              <span class="badge">已归档</span>
             </template>
             <template v-else-if="item.icon === 'edit'">
-            <span class="mini-check">
-                ✓
-            </span>
-            <span>理解一个知识点<br /><small>再用一道题检验</small></span>
+              <span class="mini-check">
+                  ✓
+              </span>
+              <span>理解一个知识点<br />
+                <small>再用一道题检验</small>
+              </span>
             </template>
             <template v-else>
                 <i v-for="n in 5" :key="n" :style="{ height: n * 9 + 12 + 'px' }" />
