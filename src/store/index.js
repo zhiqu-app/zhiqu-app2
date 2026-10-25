@@ -8,6 +8,7 @@ try {
 } catch (_) {
   /* 使用默认数据 */
 }
+// 默认参数
 const valid =
   saved &&
   saved.version === 1 &&
@@ -15,6 +16,8 @@ const valid =
   Array.isArray(saved.materials) &&
   Array.isArray(saved.tasks) &&
   Array.isArray(saved.attempts)
+
+// 体验数据
 const defaults = {
   name: '林同学',
   major: '计算机科学',
@@ -23,7 +26,9 @@ const defaults = {
   reducedMotion: false,
   reminders: true
 }
+
 let session = false
+
 try {
   session = sessionStorage.getItem('zhixu-demo-session') === 'yes'
 } catch (_) {}
