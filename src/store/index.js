@@ -10,8 +10,7 @@ try {
 }
 // 默认参数
 const valid =
-  saved &&
-  saved.version === 1 &&
+  saved && saved.version === 1 &&
   Array.isArray(saved.courses) &&
   Array.isArray(saved.materials) &&
   Array.isArray(saved.tasks) &&
