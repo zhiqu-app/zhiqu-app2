@@ -1,90 +1,103 @@
 <template>
-    <div class="workspace"
-        :class="{ 'menu-open': menuOpen, immersive: $route.name === 'practice' }"
-        @keydown.esc="closeMenu">
-        <div v-if="menuOpen" class="menu-shade" @click="menuOpen = false" />
-        <div
-        ref="sidebar"
-        class="sidebar-container"
-        :inert="narrow && !menuOpen ? '' : null"
-        @keydown.tab="trapMenu">
-            <button
-                v-if="narrow && menuOpen"
-                class="icon-button drawer-close"
-                aria-label="关闭导航"
-                @click="closeMenu"
-            >
-            <AppIcon name="close" :size="20" />
-            </button>
-            <SideMenu :user="state.settings" @navigate="menuOpen = false" />
-        </div>
-        <div class="workspace-body" :inert="narrow && menuOpen ? '' : null">
-            <header class="topbar">
-                <div class="topbar-title">
-                    <button
-                        class="icon-button"
-                        ref="menuButton"
-                        :aria-expanded="String(menuOpen)"
-                        aria-label="打开或关闭导航"
-                        @click="menuOpen = !menuOpen">
-                        <AppIcon name="menu" />
-                    </button>
-                    <span>学习空间 
-                        <em>/</em>
-                        <strong>{{ $route.meta.title }}</strong>
-                    </span>
-                </div>
-                <form class="top-search" @submit.prevent="search">
-                    <AppIcon name="search" :size="19" />
-                    <input
-                        v-model.trim="searchText"
-                        aria-label="搜索课程"
-                        placeholder="搜索课程、资料或知识点"/>
-                </form>
-                <button
-                    v-if="state.settings.reminders"
-                    class="icon-button notification-button"
-                    aria-label="学习提醒"
-                    @click="notify('今天也记得给自己留一点学习时间。')">
-                    <AppIcon name="bell" />
-                    <i />
-                </button>
-                <router-link to="/app/settings" aria-label="打开个人设置">
-                    <UserAvatar :name="state.settings.name" :size="34"/>
-                </router-link>
-            </header>
-            <div class="demo-banner">
-                <span><i class="dot cyan" />本地演示空间</span
-                ><span>数据保存在此浏览器 · AI 使用本地资料检索演示</span
-                ><router-link to="/welcome">产品首页</router-link>
-            </div>
-            <p v-if="state.storageError" class="error-message" role="alert">
-                浏览器无法保存数据，请先导出学习记录。
-            </p>
-            <main
-                class="workspace-content"
-                :aria-busy="navigation.pending ? 'true' : 'false'"
-                :inert="navigation.overlayVisible || navigation.overlayLeaving ? '' : null">
-                <transition name="page-view" mode="out-in" :css="allowMotion" @after-enter="workspaceReady">
-                    <router-view
-                        :key="$route.path"
-                        v-page-reveal
-                        class="route-page"
-                        :data-route-path="$route.fullPath"
-                    />
-                </transition>
-            </main>
-        </div>
-        <nav class="mobile-nav" aria-label="手机主导航" :inert="menuOpen ? '' : null">
-        <router-link
-            v-for="item in mobileItems"
-            :key="item.path"
-            :to="item.path"
-            :class="{ active: isActive(item.key) }"
-            ><AppIcon :name="item.icon" /><span>{{ item.label }}</span></router-link
-        >
-        </nav>
+  <div
+    class="workspace"
+    :class="{ 'menu-open': menuOpen, immersive: $route.name === 'practice' }"
+    @keydown.esc="closeMenu"
+  >
+    <div v-if="menuOpen" class="menu-shade" @click="menuOpen = false" />
+    <div
+      ref="sidebar"
+      class="sidebar-container"
+      :inert="narrow && !menuOpen ? '' : null"
+      @keydown.tab="trapMenu"
+    >
+      <button
+        v-if="narrow && menuOpen"
+        class="icon-button drawer-close"
+        aria-label="关闭导航"
+        @click="closeMenu"
+      >
+        <AppIcon name="close" :size="20" />
+      </button>
+      <SideMenu :user="state.settings" @navigate="menuOpen = false" />
     </div>
+    <div class="workspace-body" :inert="narrow && menuOpen ? '' : null">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button
+            class="icon-button"
+            ref="menuButton"
+            :aria-expanded="String(menuOpen)"
+            aria-label="打开或关闭导航"
+            @click="menuOpen = !menuOpen"
+          >
+            <AppIcon name="menu" />
+          </button>
+          <span>学习空间
+            <em>/</em>
+            <strong>{{ $route.meta.title }}</strong>
+          </span>
+        </div>
+        <form class="top-search" @submit.prevent="search">
+          <AppIcon name="search" :size="19" />
+          <input
+            v-model.trim="searchText"
+            aria-label="搜索课程"
+            placeholder="搜索课程、资料或知识点"
+          />
+        </form>
+        <button
+          v-if="state.settings.reminders"
+          class="icon-button notification-button"
+          aria-label="学习提醒"
+          @click="notify('今天也记得给自己留一点学习时间。')">
+          <AppIcon name="bell" />
+          <i />
+        </button>
+        <router-link to="/app/settings" aria-label="打开个人设置">
+          <UserAvatar :name="state.settings.name" :size="34" />
+        </router-link>
+      </header>
+      <div class="demo-banner">
+        <span><i class="dot cyan" />
+        {{
+            state.mode === 'account' ? '账号已登录' : '本地演示空间'
+          }}</span>
+          <span>{{
+          state.mode === 'account'
+            ? '仅账号已接入后端 · 学习数据暂存本机'
+            : '数据保存在此浏览器 · AI 使用本地资料检索演示'
+        }}
+        </span>
+        <router-link to="/welcome">产品首页</router-link>
+      </div>
+      <p v-if="state.storageError" class="error-message" role="alert">
+        浏览器无法保存数据，请先导出学习记录。
+      </p>
+      <main
+        class="workspace-content"
+        :aria-busy="navigation.pending ? 'true' : 'false'"
+        :inert="navigation.overlayVisible || navigation.overlayLeaving ? '' : null">
+        <transition name="page-view" mode="out-in" :css="allowMotion" @after-enter="workspaceReady">
+          <router-view
+            :key="$route.path"
+            v-page-reveal
+            class="route-page"
+            :data-route-path="$route.fullPath"/>
+        </transition>
+      </main>
+    </div>
+    <nav class="mobile-nav" aria-label="手机主导航" :inert="menuOpen ? '' : null">
+      <router-link
+        v-for="item in mobileItems"
+        :key="item.path"
+        :to="item.path"
+        :class="{ active: isActive(item.key) }">
+        <AppIcon :name="item.icon" />
+        <span>{{ item.label }}</span>
+      </router-link>
+    </nav>
+  </div>
 </template>
 <script>
 import SideMenu from '../components/SideMenu.vue'

@@ -1,7 +1,8 @@
 <template>
   <main class="login-page">
     <PublicHeader>
-      <BrandLogo /><router-link to="/welcome" class="text-button">返回产品首页
+      <BrandLogo /><router-link to="/welcome" class="text-button"
+        >返回产品首页
         <AppIcon name="arrow" :size="16" />
       </router-link>
     </PublicHeader>
@@ -11,58 +12,84 @@
         <p>回到课程资料、练习与复习。</p>
         <BookStage :state="artState" />
         <div class="login-art-points">
-            <span>
-                <i class="dot cyan" />课程有序归档
-            </span>
-            <span>
-                <i class="dot cyan" />学习持续积累
-            </span>
-            <span>
-                <i class="dot amber" />每一步都有方向
-            </span>
+          <span> <i class="dot cyan" />课程有序归档</span>
+          <span> <i class="dot cyan" />学习持续积累</span>
+          <span> <i class="dot amber" />每一步都有方向</span>
         </div>
       </section>
       <section class="panel login-card">
         <span class="eyebrow">欢迎回到你的学习空间</span>
         <h2>登录知序</h2>
-        <p class="muted">当前为本地体验，不会验证或发送账号信息。</p>
+        <p class="muted">使用已注册邮箱和密码登录你的学习空间。</p>
         <form @submit.prevent="submit">
-            <label class="field-label" for="email">邮箱</label>
-            <div class="input-with-icon" :class="{ focused: focused === 'email' }">
-                <AppIcon name="mail" :size="18" /><input id="email" ref="email" v-model.trim="email" type="email"
-                placeholder="输入邮箱（体验可留空）" autocomplete="email" enterkeyhint="next" @focus="focused = 'email'"
-                @blur="focused = ''" @keydown.enter.prevent="$refs.password.focus()" />
-            </div>
-            <label class="field-label" for="password">密码</label>
-            <div class="input-with-icon" :class="{ focused: focused === 'password' }">
-                <AppIcon name="lock" :size="18" />
-                <input id="password" ref="password" v-model="password"
-                :type="visible ? 'text' : 'password'" placeholder="体验模式无需真实密码" autocomplete="off" enterkeyhint="go"
-                @focus="focused = 'password'" @blur="focused = ''" />
-                <button class="icon-button" type="button"
-                :aria-label="visible ? '隐藏密码' : '显示密码'" :aria-pressed="String(visible)" @mousedown.prevent
-                @click="visible = !visible">
-                  <AppIcon name="eye" :size="18" />
-                </button>
-            </div>
-            <div class="login-options">
-                <span class="muted small">密码仅保留在当前输入框中</span>
-                <button type="button" class="text-button"
-                @click="notify('真实账号注册与找回密码需由团队接入后端服务。')">
-                    需要帮助？
-                </button>
-            </div>
-            <p v-if="error" class="error-message" role="alert">{{ error }}</p>
-            <button class="button primary full-width" type="submit" :disabled="busy">
-                {{ busy ? '正在进入' : '进入演示学习空间' }}
-                <AppIcon name="arrow" :size="18" />
+          <label class="field-label" for="email">邮箱</label>
+          <div class="input-with-icon" :class="{ focused: focused === 'email' }">
+            <AppIcon name="mail" :size="18" />
+            <input
+              id="email"
+              ref="email"
+              v-model.trim="email"
+              type="email"
+              placeholder="输入注册邮箱"
+              required
+              :disabled="busy"
+              autocomplete="email"
+              enterkeyhint="next"
+              @focus="focused = 'email'"
+              @blur="focused = ''"
+              @keydown.enter.prevent="$refs.password.focus()"
+            />
+          </div>
+          <label class="field-label" for="password">密码</label>
+          <div class="input-with-icon" :class="{ focused: focused === 'password' }">
+            <AppIcon name="lock" :size="18" />
+            <input
+              id="password"
+              ref="password"
+              v-model="password"
+              :type="visible ? 'text' : 'password'"
+              placeholder="输入密码"
+              autocomplete="current-password"
+              required
+              :disabled="busy"
+              enterkeyhint="go"
+              @focus="focused = 'password'"
+              @blur="focused = ''"
+            />
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="visible ? '隐藏密码' : '显示密码'"
+              :aria-pressed="String(visible)"
+              @mousedown.prevent
+              @click="visible = !visible"
+            >
+              <AppIcon name="eye" :size="18" />
             </button>
+          </div>
+          <div class="login-options">
+            <span class="muted small">密码仅保留在当前输入框中</span>
+            <button
+              type="button"
+              class="text-button"
+              @click="notify('尚未提供找回密码功能。没有账号可以先注册。')"
+              >
+              需要帮助？
+            </button>
+          </div>
+          <p v-if="error" class="error-message" role="alert">{{ error }}</p>
+          <button class="button primary full-width" type="submit" :disabled="busy">
+            {{ busy ? '正在验证账号…' : '登录学习空间' }}
+            <AppIcon name="arrow" :size="18" />
+          </button>
         </form>
         <div class="login-divider"><span>或者</span></div>
-        <button class="button secondary full-width" :disabled="busy" @click="submit">
-            直接体验示例课程
+        <button class="button secondary full-width" :disabled="busy" @click="experience">
+          体验示例课程（无需注册）
         </button>
-        <p class="login-note">真实登录及 AI 服务接入后，可替换现有演示适配层。</p>
+        <p class="login-note">
+          还没有账号？<router-link to="/register" class="text-button">使用邮箱注册</router-link>
+        </p>
       </section>
     </div>
   </main>
@@ -71,7 +98,8 @@
 import PublicHeader from '../components/PublicHeader.vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import BookStage from '../components/BookStage.vue'
-import { enterDemo, state, persist, notify } from '../store'
+import { notify } from '../store'
+import { loginAccount, enterDemo } from '../services/auth'
 export default {
   name: 'Login',
   components: { PublicHeader, BrandLogo, BookStage },
@@ -87,26 +115,50 @@ export default {
           : 'idle'
     }
   },
+  mounted() {
+    this.email = typeof this.$route.query.email === 'string' ? this.$route.query.email : ''
+    if (this.$route.query.reason === 'connection')
+      this.error = '暂时无法验证会话，请检查后端服务后重试。'
+  },
   methods: {
     notify,
-    submit() {
-        if (this.busy) return
-        this.error = ''
-        if (this.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
-            this.error = '请输入有效的邮箱地址。'
-            return
-        }
-        this.busy = true
-        if (this.email) {
-            state.settings.email = this.email
-            persist()
-        }
+    async submit() {
+      if (this.busy) return
+      this.error = ''
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+        this.error = '请输入有效的邮箱地址。'
+        return
+      }
+      if (this.password.length < 8 || this.password.length > 128) {
+        this.error = '密码长度应为 8～128 位。'
+        return
+      }
+      this.busy = true
+      try {
+        await loginAccount(this.email, this.password)
         this.password = ''
-        enterDemo()
         const redirect = this.$route.query.redirect
-        this.$router.push(
-            typeof redirect === 'string' && redirect.startsWith('/app/') ? redirect : '/app/overview'
-      )
+        await this.$router.replace(
+          typeof redirect === 'string' && redirect.startsWith('/app/') ? redirect : '/app/overview'
+        )
+      } catch (error) {
+        if (error.name !== 'NavigationDuplicated')
+          this.error = error.message || '登录失败，请重试。'
+      } finally {
+        this.busy = false
+      }
+    },
+    async experience() {
+      if (this.busy) return
+      this.busy = true
+      try {
+        await enterDemo()
+        await this.$router.push('/app/overview')
+      } catch (error) {
+        this.error = error.message
+      } finally {
+        this.busy = false
+      }
     }
   }
 }
@@ -139,7 +191,7 @@ export default {
     font-size: 33px;
   }
 
-  >p {
+  > p {
     color: #9cc7e7;
     letter-spacing: 3px;
   }
@@ -179,7 +231,7 @@ export default {
     margin-bottom: 9px;
   }
 
-  >.muted {
+  > .muted {
     font-size: 12px;
   }
 
@@ -269,7 +321,7 @@ export default {
       margin-top: 15px;
     }
 
-    >p {
+    > p {
       font-size: 12px;
       letter-spacing: 1px;
     }

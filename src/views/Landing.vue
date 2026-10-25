@@ -3,8 +3,8 @@
     <PublicHeader>
       <BrandLogo />
       <nav class="landing-links">
-        <a href="#advantages" @click.prevent="scrollTo('advantages')">产品优势</a><a href="#workflow"
-          @click.prevent="scrollTo('workflow')">学习流程</a>
+        <a href="#advantages" @click.prevent="scrollTo('advantages')">产品优势</a>
+        <a href="#workflow" @click.prevent="scrollTo('workflow')">学习流程</a>
       </nav>
       <router-link to="/login" class="button primary small-button">
         进入学习空间
@@ -14,7 +14,8 @@
     <section class="landing-hero">
       <div class="hero-copy">
         <span class="eyebrow"><i class="dot cyan" />属于你的 AI 学习空间</span>
-        <h1>把零散知识，<br />连成你的
+        <h1>
+          把零散知识，<br />连成你的
           <span>学习路径</span>
         </h1>
         <p>从一份课堂讲义，到一次真正的理解。<br />让资料、提问、练习与复习，在这里连成一条线。</p>
@@ -22,7 +23,8 @@
           <button class="button primary" @click="experience">
             开始学习
             <AppIcon name="arrow" :size="18" />
-          </button><a href="#advantages" class="button secondary" @click.prevent="scrollTo('advantages')">
+          </button>
+          <a href="#advantages" class="button secondary" @click.prevent="scrollTo('advantages')">
             <AppIcon name="play" :size="16" />探索知序
           </a>
         </div>
@@ -54,16 +56,14 @@
               <span class="badge">已归档</span>
             </template>
             <template v-else-if="item.icon === 'edit'">
-              <span class="mini-check">
-                  ✓
-              </span>
+              <span class="mini-check"> ✓ </span>
               <span>理解一个知识点<br />
                 <small>再用一道题检验</small>
               </span>
             </template>
             <template v-else>
-                <i v-for="n in 5" :key="n" :style="{ height: n * 9 + 12 + 'px' }" />
-                <span>看见你的积累</span>
+              <i v-for="n in 5" :key="n" :style="{ height: n * 9 + 12 + 'px' }" />
+              <span>看见你的积累</span>
             </template>
           </div>
         </article>
@@ -81,7 +81,8 @@
       </div>
       <ol class="workflow-list">
         <li v-for="(step, i) in steps" :key="step">
-          <span>{{ String(i + 1).padStart(2, '0') }}</span>{{ step }}
+          <span>{{ String(i + 1).padStart(2, '0') }}</span>
+            {{ step }}
           <AppIcon name="check" :size="18" />
         </li>
       </ol>
@@ -98,7 +99,8 @@ import PublicHeader from '../components/PublicHeader.vue'
 import PublicFooter from '../components/PublicFooter.vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import KnowledgeGraph from '../components/KnowledgeGraph.vue'
-import { enterDemo } from '../store'
+import { enterDemo } from '../services/auth'
+import { getToken } from '../services/api'
 export default {
   name: 'Landing',
   components: { PublicHeader, PublicFooter, BrandLogo, KnowledgeGraph },
@@ -124,8 +126,8 @@ export default {
     steps: ['导入课程资料', '阅读与提问', '练习检验理解', '安排下一次复习']
   }),
   methods: {
-    experience() {
-      enterDemo()
+    async experience() {
+      if (!getToken()) await enterDemo()
       this.$router.push('/app/overview')
     },
     scrollTo(id) {
@@ -252,12 +254,12 @@ export default {
   padding: 45px 34px;
   margin: 0 auto;
 
-  >h2,
-  >.eyebrow {
+  > h2,
+  > .eyebrow {
     text-align: center;
   }
 
-  >h2 {
+  > h2 {
     font-size: 30px;
     margin-bottom: 38px;
   }
@@ -272,7 +274,7 @@ export default {
 .advantage-card {
   padding: 28px;
 
-  >.app-icon {
+  > .app-icon {
     color: #1ab6f6;
     margin-bottom: 22px;
   }
@@ -445,7 +447,7 @@ export default {
   .landing-section {
     padding: 35px 20px;
 
-    >h2 {
+    > h2 {
       font-size: 25px;
       margin-bottom: 25px;
     }
@@ -463,7 +465,7 @@ export default {
   .advantage-card {
     padding: 24px;
 
-    >.app-icon {
+    > .app-icon {
       margin-bottom: 16px;
     }
 

@@ -1,10 +1,13 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 import { state } from '../store'
+import { restoreSession } from '../services/auth'
+import { getToken } from '../services/api'
 import Landing from '../views/Landing.vue'
 import Workspace from '../layouts/Workspace.vue'
 import Splash from '../views/Splash.vue'
 import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
 import {
   beginNavigation,
   completeNavigation,
@@ -19,7 +22,8 @@ const router = new Router({
   routes: [
     { path: '/', component: Splash },
     { path: '/welcome', component: Landing },
-    { path: '/login', component: Login },
+    { path: '/login', component: Login, meta: { title: '登录' } },
+    { path: '/register', component: Register, meta: { title: '邮箱注册' } },
     {
       path: '/app',
       component: Workspace,
@@ -91,13 +95,19 @@ const router = new Router({
     { path: '*', redirect: '/welcome' }
   ]
 })
-router.beforeEach((to, from, next) => {
-  if (to.matched.some((r) => r.meta.workspace) && !state.session)
-    next({ path: '/login', query: { redirect: to.fullPath } })
-  else {
-    beginNavigation(to, from)
-    next()
+router.beforeEach(async (to, from, next) => {
+  if (to.matched.some((record) => record.meta.workspace)) {
+    if (getToken() || state.mode !== 'demo') {
+      try {
+        const user = await restoreSession()
+        if (!user) return next({ path: '/login', query: { redirect: to.fullPath } })
+      } catch (_) {
+        return next({ path: '/login', query: { redirect: to.fullPath, reason: 'connection' } })
+      }
+    }
   }
+  beginNavigation(to, from)
+  next()
 })
 router.beforeResolve(async (to, from, next) => {
   const current = await coverBeforeCommit(navigation.revision)
