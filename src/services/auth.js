@@ -5,7 +5,7 @@ let restoring = null
 onUnauthorized(() => {
   if (state.mode === 'account') clearAccount()
 })
-
+// 用户注册
 export async function registerAccount(body) {
   const result = await api.register(body)
   activateAccount(result.user)
