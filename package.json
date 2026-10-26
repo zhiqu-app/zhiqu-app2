@@ -7,9 +7,6 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:smoke": "node tests/smoke.cjs",
-    "test:motion": "node tests/motion.cjs",
-    "test:loading": "node tests/loading-page.cjs",
     "format": "prettier --write src tests vite.config.js"
   },
   "dependencies": {

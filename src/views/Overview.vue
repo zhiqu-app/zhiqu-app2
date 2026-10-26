@@ -16,13 +16,21 @@
           <div class="panel-heading">
             <div>
               <h2>我的知识星图</h2>
-              <p class="muted small">线性代数 · 点击节点，继续探索</p>
+              <p class="muted small">{{ graph ? graph.title : '从自己的学习方向开始' }}</p>
             </div>
             <router-link to="/app/knowledge" class="text-button">完整路线
               <AppIcon name="arrow" :size="16" />
             </router-link>
           </div>
-          <KnowledgeGraph :selected="selected" @select="select" />
+          <KnowledgeGraph v-if="graph && graph.nodes.length" :title="graph.title"
+            :nodes="graph.nodes" :edges="graph.edges" :selected="selectedNodeId" @select="select" />
+          <div v-else class="overview-graph-empty">
+            <p>{{ state.mode === 'demo' ? '登录账号，创建并保存属于你的知识星图。' : '当前路线还没有知识点。' }}</p>
+            <router-link :to="state.mode === 'demo' ? '/login' : '/setup-knowledge'" class="button secondary">
+              {{ state.mode === 'demo' ? '登录并配置星图' : '配置星图' }}
+            </router-link>
+          </div>
+          <router-link v-if="graph" to="/setup-knowledge" class="text-button">调整学习方向与目标</router-link>
         </article>
         <section class="panel stat-strip">
           <div>
@@ -78,8 +86,8 @@
             <h2>问一个学习问题</h2>
             <AppIcon name="spark" />
           </div>
-          <p class="muted">对角矩阵的特征值怎么求？试试从课程资料中找线索。</p>
-          <router-link to="/app/studio?course=linear" class="button secondary full-width">进入研习室
+          <p class="muted">{{ graph ? graph.goal : '带着自己的问题，从课程资料中寻找线索。' }}</p>
+          <router-link :to="graph ? { path: '/app/studio', query: { course: graph.courseId } } : '/app/studio'" class="button secondary full-width">进入研习室
             <AppIcon name="arrow" :size="18" />
           </router-link>
         </section>
@@ -102,7 +110,7 @@ export default {
   components: { KnowledgeGraph, CourseCard },
   data: () => ({
     state,
-    selected: 'eigen',
+    selected: '',
     today: new Date().toLocaleDateString('zh-CN', {
       month: 'long',
       day: 'numeric',
@@ -110,6 +118,13 @@ export default {
     })
   }),
   computed: {
+    graph() {
+      return this.state.mode === 'account' ? this.state.knowledgeGraph : null
+    },
+    selectedNodeId() {
+      const nodes = this.graph?.nodes || []
+      return nodes.some(node => node.id === this.selected) ? this.selected : nodes[0]?.id || ''
+    },
     courses() {
       return state.courses.filter((c) => !c.archived).slice(0, 2)
     },
@@ -139,6 +154,12 @@ export default {
 @import '../styles/tokens.less';
 
 /* 本组件的布局、状态、动效与响应式样式。 */
+
+.overview-graph-empty {
+  padding: 40px 0;
+  color: @muted;
+  p { margin-bottom: 20px; }
+}
 
 .overview-heading {
   padding: 10px 0;

@@ -1,10 +1,10 @@
 <template>
   <div class="knowledge-graph">
-    <svg viewBox="0 0 760 300" role="img" aria-label="线性代数知识点之间的关系">
+    <svg viewBox="0 0 760 300" role="img" :aria-label="title">
       <defs>
         <filter :id="glowId"><feGaussianBlur stdDeviation="4" /></filter>
       </defs>
-      <path v-for="(edge, i) in edges" :key="i" :d="line(edge)" stroke="#207fc0" fill="none" />
+      <path v-for="(edge, i) in validEdges" :key="i" :d="line(edge)" stroke="#207fc0" fill="none" />
       <g v-for="(node, i) in nodes"
         :key="node.id"
         class="graph-node"
@@ -50,37 +50,25 @@
         <span>
             <i class="dot amber" />当前选中
         </span>
-        <span>示例知识关系</span>
+        <span>知识关系</span>
     </div>
   </div>
 </template>
 <script>
 export default {
   name: 'KnowledgeGraph',
-  props: { selected: { type: String, default: 'eigen' } },
-  data: () => ({
-    nodes: [
-      { id: 'matrix', label: '矩阵', x: 70, y: 160 },
-      { id: 'operation', label: '矩阵运算', x: 170, y: 72 },
-      { id: 'linear', label: '线性方程组', x: 260, y: 190 },
-      { id: 'eigen', label: '特征值', x: 385, y: 105 },
-      { id: 'vector', label: '特征向量', x: 490, y: 213 },
-      { id: 'diagonal', label: '对角化', x: 603, y: 141 },
-      { id: 'application', label: '应用', x: 688, y: 65 }
-    ],
-    edges: [
-      [0, 1],
-      [0, 2],
-      [1, 2],
-      [1, 3],
-      [2, 3],
-      [3, 4],
-      [3, 5],
-      [4, 5],
-      [5, 6]
-    ]
-  }),
+  // 只负责绘制和选择；业务数据统一由父页面从当前账号接口传入。
+  props: {
+    title: { type: String, default: '知识点之间的关系' },
+    selected: { type: String, default: '' },
+    nodes: { type: Array, default: () => [] },
+    edges: { type: Array, default: () => [] }
+  },
   computed: {
+    validEdges() {
+      return this.edges.filter(edge => Array.isArray(edge) && edge.length === 2 &&
+        edge.every(index => Number.isInteger(index) && this.nodes[index]))
+    },
     glowId() {
       return 'graph-glow-' + this._uid
     }

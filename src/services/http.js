@@ -48,7 +48,7 @@ export async function request(path, { method = 'GET', body, signal } = {}) {
     if (error.status) throw error
     if (axios.isCancel(error)) throw new DOMException('Aborted', 'AbortError')
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-      throw new Error('请求超时，请检查邮箱或稍后重试。')
+      throw new Error('请求超时，请检查网络或稍后重试。')
     }
     if (error.code === 'ERR_NETWORK' || error.code === 'ERR_BAD_RESPONSE') {
       throw new Error('无法连接服务，请检查后端地址和跨域配置。')

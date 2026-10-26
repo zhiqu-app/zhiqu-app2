@@ -134,6 +134,12 @@ export default {
         : []
     },
     suggestions() {
+      if (state.mode === 'account') {
+        const graph = state.knowledgeGraph
+        return graph && graph.courseId === this.courseId
+          ? graph.nodes.slice(0, 2).map(node => '如何理解' + node.label + '？')
+          : ['这份资料有哪些核心概念？', '能用一个例子解释吗？']
+      }
       return this.courseId === 'structures'
         ? ['二叉树是什么？', '中序遍历的顺序是什么？']
         : ['对角矩阵的特征值怎么求？', '特征向量满足什么条件？']

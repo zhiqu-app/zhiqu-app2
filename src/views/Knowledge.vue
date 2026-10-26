@@ -3,36 +3,40 @@
     <header class="page-heading">
       <div>
         <h1>看清知识之间的关系</h1>
-        <p>以线性代数为例，从一个知识点出发，找到下一步。</p>
+        <p>{{ graph ? graph.goal : '登录并选择学习方向，建立属于你的知识路线。' }}</p>
       </div>
-      <span class="badge">示例知识路线</span>
+      <router-link :to="graph ? '/setup-knowledge' : '/login'" class="button secondary">
+        {{ graph ? '调整学习配置' : '登录并配置星图' }}
+      </router-link>
     </header>
-    <div class="content-with-aside">
+    <div v-if="graph" class="content-with-aside">
       <section class="panel knowledge-panel">
         <div class="panel-heading">
-          <h2>线性代数</h2>
+          <h2>{{ graph.title }}</h2>
           <span class="muted small">点击节点探索</span>
         </div>
-        <KnowledgeGraph :selected="selected.id" @select="selected = $event" />
+        <KnowledgeGraph v-if="nodes.length" :title="graph.title" :nodes="nodes" :edges="graph.edges"
+          :selected="selected ? selected.id : ''" @select="selectedId = $event.id" />
+        <p v-else class="muted">这条路线暂时没有知识点，可调整学习配置后再试。</p>
         <div class="knowledge-hint">
-          <AppIcon name="info" :size="18" />节点连线为内置学习示意，不代表自动解析所有课程。
+          <AppIcon name="info" :size="18" />路线按课程目录建立，可点击节点查看说明，再结合资料逐步学习。
         </div>
         <div class="knowledge-cards">
-          <button v-for="n in nodes" :key="n.id" class="knowledge-card" :class="{ active: selected.id === n.id }"
-            @click="selected = n">
+          <button v-for="n in nodes" :key="n.id" class="knowledge-card" :class="{ active: selected && selected.id === n.id }"
+            @click="selectedId = n.id">
             <AppIcon name="book" /><strong>{{ n.label }}</strong><span>查看学习内容</span>
           </button>
         </div>
       </section>
       <aside class="right-rail">
-        <section class="panel">
+        <section v-if="selected" class="panel">
           <span class="badge amber">正在探索</span>
           <h2 class="selected-node-title">{{ selected.label }}</h2>
           <p>
-            {{ descriptions[selected.id] || '从定义与基本运算开始，建立理解，再通过例题检验。' }}
+            {{ selected.description || '这个知识点暂时没有说明，可先阅读相关课程资料。' }}
           </p>
           <div class="button-stack">
-            <router-link to="/app/studio?course=linear" class="button secondary">
+            <router-link :to="{ path: '/app/studio', query: { course: graph.courseId } }" class="button secondary">
               <AppIcon name="file" :size="18" />回看课程资料
             </router-link>
             <router-link to="/app/practice" class="button primary">
@@ -53,26 +57,16 @@
 </template>
 <script>
 import KnowledgeGraph from '../components/KnowledgeGraph.vue'
+import { state } from '../store'
 export default {
   name: 'Knowledge',
   components: { KnowledgeGraph },
-  data: () => ({
-    selected: { id: 'eigen', label: '特征值' },
-    nodes: [
-      { id: 'matrix', label: '矩阵' },
-      { id: 'operation', label: '矩阵运算' },
-      { id: 'linear', label: '线性方程组' },
-      { id: 'eigen', label: '特征值' },
-      { id: 'vector', label: '特征向量' },
-      { id: 'diagonal', label: '对角化' }
-    ],
-    descriptions: {
-      eigen:
-        '如果存在非零向量 v 使 Av = λv，λ 就是矩阵 A 的特征值。对角矩阵的特征值可以直接从主对角线读取。',
-      vector: '特征向量是在线性变换下方向保持不变的非零向量，满足 Av = λv。',
-      diagonal: '矩阵对角化把线性变换转为更容易理解的对角形式。需要找到足够多线性无关的特征向量。'
-    }
-  })
+  data: () => ({ state, selectedId: '' }),
+  computed: {
+    graph() { return this.state.mode === 'account' ? this.state.knowledgeGraph : null },
+    nodes() { return this.graph?.nodes || [] },
+    selected() { return this.nodes.find(node => node.id === this.selectedId) || this.nodes[0] || null }
+  }
 }
 </script>
 

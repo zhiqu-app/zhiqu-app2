@@ -43,6 +43,10 @@ export const state = Vue.observable({
   session,
   mode: session ? 'demo' : 'anonymous',
   account: null,
+  // 仅保存在内存；刷新后从账号接口恢复，不能用浏览器标记代替数据库配置。
+  knowledgeGraph: null,
+  knowledgeStatus: 'idle',
+  knowledgeError: '',
   toast: '',
   storageError: false
 })
@@ -119,6 +123,9 @@ export function resetData() {
 
 // 真实账号只隔离本机业务缓存；课程等业务接口尚需逐页接入。
 function switchSpace(key, empty, profile = {}) {
+  state.knowledgeGraph = null
+  state.knowledgeStatus = 'idle'
+  state.knowledgeError = ''
   let cached = null
   try {
     cached = JSON.parse(localStorage.getItem(key))

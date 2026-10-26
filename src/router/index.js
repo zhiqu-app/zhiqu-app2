@@ -3,6 +3,7 @@ import Router from 'vue-router'
 import { state } from '../store'
 import { restoreSession } from '../services/auth'
 import { getToken } from '../services/api'
+import { loadCurrentGraph } from '../services/knowledge'
 import Landing from '../views/Landing.vue'
 import Workspace from '../layouts/Workspace.vue'
 import Splash from '../views/Splash.vue'
@@ -24,6 +25,12 @@ const router = new Router({
     { path: '/welcome', component: Landing },
     { path: '/login', component: Login, meta: { title: '登录' } },
     { path: '/register', component: Register, meta: { title: '邮箱注册' } },
+    {
+      path: '/setup-knowledge',
+      name: 'setup-knowledge',
+      component: lazyPage(() => import('../views/KnowledgeSetup.vue')),
+      meta: { requiresAuth: true, title: '配置知识星图' }
+    },
     {
       path: '/app',
       component: Workspace,
@@ -96,17 +103,31 @@ const router = new Router({
   ]
 })
 router.beforeEach(async (to, from, next) => {
-  if (to.matched.some((record) => record.meta.workspace)) {
-    if (getToken() || state.mode !== 'demo') {
+  // 提前覆盖旧页面，再校验会话及星图；保留原有的页面平滑交接。
+  beginNavigation(to, from)
+  const workspace = to.matched.some(record => record.meta.workspace)
+  const setup = to.name === 'setup-knowledge'
+  if (workspace || setup) {
+    if (getToken() || state.mode !== 'demo' || setup) {
       try {
         const user = await restoreSession()
         if (!user) return next({ path: '/login', query: { redirect: to.fullPath } })
       } catch (_) {
         return next({ path: '/login', query: { redirect: to.fullPath, reason: 'connection' } })
       }
+      // 配置页自行展示错误并提供重试；学习空间则必须先查明是否有配置。
+      if (!setup) {
+        try {
+          const graph = await loadCurrentGraph()
+          if (!graph) return next({ path: '/setup-knowledge', query: { redirect: to.fullPath } })
+        } catch (error) {
+          if (error.status === 401 || !getToken()) return next({ path: '/login', query: { redirect: to.fullPath } })
+          if (error.name === 'AbortError') return next(false)
+          return next({ path: '/setup-knowledge', query: { redirect: to.fullPath, reason: 'load' } })
+        }
+      }
     }
   }
-  beginNavigation(to, from)
   next()
 })
 router.beforeResolve(async (to, from, next) => {
