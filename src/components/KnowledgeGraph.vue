@@ -3,9 +3,33 @@
     <svg viewBox="0 0 760 300" role="img" :aria-label="title">
       <defs>
         <filter :id="glowId"><feGaussianBlur stdDeviation="4" /></filter>
+        <marker
+          :id="glowId + '-arrow'"
+          viewBox="0 0 10 10"
+          refX="15"
+          refY="5"
+          markerWidth="8"
+          markerHeight="8"
+          orient="auto"
+        >
+          <path
+            d="M 0 1 L 9 5 L 0 9"
+            fill="none"
+            stroke="#55c5ed"
+            stroke-width="1.5"
+          />
+        </marker>
       </defs>
-      <path v-for="(edge, i) in validEdges" :key="i" :d="line(edge)" stroke="#207fc0" fill="none" />
-      <g v-for="(node, i) in nodes"
+      <path
+        v-for="(edge, i) in validEdges"
+        :key="i"
+        :d="line(edge)"
+        stroke="#207fc0"
+        fill="none"
+        :marker-end="'url(#' + glowId + '-arrow)'"
+      />
+      <g
+        v-for="(node, i) in nodes"
         :key="node.id"
         class="graph-node"
         role="button"
@@ -22,69 +46,74 @@
           :r="selected === node.id ? 19 : 13"
           :fill="selected === node.id ? '#ffbd57' : '#00bffa'"
           opacity=".45"
-          :filter="'url(#' + glowId + ')'"/>
+          :filter="'url(#' + glowId + ')'"
+        />
         <circle
           :cx="node.x"
           :cy="node.y"
           :r="selected === node.id ? 8 : 6"
-          :fill="selected === node.id ? '#ffe6a9' : '#94eeff'"/>
+          :fill="selected === node.id ? '#ffe6a9' : '#94eeff'"
+        />
         <circle
           :cx="node.x"
           :cy="node.y"
           :r="selected === node.id ? 17 : 12"
           :stroke="selected === node.id ? '#ffc777' : '#32bcff'"
-          fill="none"/>
+          fill="none"
+        />
         <text
           :x="node.x"
           :y="node.y + (i % 2 ? -26 : 35)"
           text-anchor="middle"
           fill="#bad7f0"
-          font-size="15">
+          font-size="15"
+        >
           {{ node.label }}
         </text>
       </g>
     </svg>
     <div class="graph-legend">
-      <span>
-        <i class="dot cyan" />课程知识点</span>
-        <span>
-            <i class="dot amber" />当前选中
-        </span>
-        <span>知识关系</span>
+      <span> <i class="dot cyan" />课程知识点</span>
+      <span> <i class="dot amber" />当前选中 </span>
+      <span>知识关系</span>
     </div>
   </div>
 </template>
 <script>
 export default {
-  name: 'KnowledgeGraph',
+  name: "KnowledgeGraph",
   // 只负责绘制和选择；业务数据统一由父页面从当前账号接口传入。
   props: {
-    title: { type: String, default: '知识点之间的关系' },
-    selected: { type: String, default: '' },
+    title: { type: String, default: "知识点之间的关系" },
+    selected: { type: String, default: "" },
     nodes: { type: Array, default: () => [] },
-    edges: { type: Array, default: () => [] }
+    edges: { type: Array, default: () => [] },
   },
   computed: {
     validEdges() {
-      return this.edges.filter(edge => Array.isArray(edge) && edge.length === 2 &&
-        edge.every(index => Number.isInteger(index) && this.nodes[index]))
+      return this.edges.filter(
+        (edge) =>
+          Array.isArray(edge) &&
+          edge.length === 2 &&
+          edge.every((index) => Number.isInteger(index) && this.nodes[index]),
+      );
     },
     glowId() {
-      return 'graph-glow-' + this._uid
-    }
+      return "graph-glow-" + this._uid;
+    },
   },
   methods: {
     line(edge) {
       const a = this.nodes[edge[0]],
-        b = this.nodes[edge[1]]
-      return `M${a.x},${a.y} L${b.x},${b.y}`
-    }
-  }
-}
+        b = this.nodes[edge[1]];
+      return `M${a.x},${a.y} L${b.x},${b.y}`;
+    },
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 

@@ -5,7 +5,7 @@
       <div class="course-title">
         <h2>{{ course.name }}</h2>
         <span class="badge" :class="{ muted: course.archived }">{{
-          course.archived ? '已归档' : '进行中'
+          course.archived ? "已归档" : "进行中"
         }}</span
         ><span class="teacher">授课教师：{{ course.teacher }}</span
         ><button
@@ -17,9 +17,14 @@
         </button>
       </div>
       <p class="course-chapter">{{ course.chapter }}</p>
+      <span v-if="course._remote === false" class="badge amber"
+        >本机课程 · 尚未同步</span
+      >
       <p class="course-description">{{ course.description }}</p>
       <div class="course-progress">
-        <div class="progress-track"><i :style="{ width: course.progress + '%' }" /></div>
+        <div class="progress-track">
+          <i :style="{ width: course.progress + '%' }" />
+        </div>
         <span>{{ course.progress }}%</span
         ><span
           >{{ Math.round((course.progress * course.lessons) / 100) }} /
@@ -29,34 +34,38 @@
       <div class="course-card-footer">
         <div>
           <AppIcon name="file" /><span
-            ><strong>{{ materialCount }} 份资料</strong><small>讲义 · 课堂笔记</small></span
+            ><strong>{{ materialCount }} 份资料</strong
+            ><small>讲义 · 课堂笔记</small></span
           >
         </div>
         <div class="course-exercise">
-          <AppIcon name="edit" /><span><strong>知识巩固</strong><small>练习与理解同步</small></span>
+          <AppIcon name="edit" /><span
+            ><strong>知识巩固</strong><small>练习与理解同步</small></span
+          >
         </div>
         <router-link :to="'/app/courses/' + course.id" class="button primary"
-          >{{ course.archived ? '查看课程' : '继续学习' }}<AppIcon name="chevron" :size="18"
+          >{{ course.archived ? "查看课程" : "继续学习"
+          }}<AppIcon name="chevron" :size="18"
         /></router-link>
       </div>
     </div>
   </article>
 </template>
 <script>
-import { asset } from '../utils/assets'
+import { asset } from "../utils/assets";
 export default {
-  name: 'CourseCard',
+  name: "CourseCard",
   props: {
     course: { type: Object, required: true },
     materialCount: { type: Number, default: 0 },
-    compact: Boolean
+    compact: Boolean,
   },
-  methods: { asset }
-}
+  methods: { asset },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 

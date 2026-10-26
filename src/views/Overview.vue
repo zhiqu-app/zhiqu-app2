@@ -4,7 +4,11 @@
       <div>
         <span class="eyebrow">学习不是赶路，是一点点看清方向</span>
         <h1>今天，从一个清晰点开始</h1>
-        <p>{{ state.settings.name }}，欢迎回来。把理解留给今天，把进步留在记录里。</p>
+        <p>
+          {{
+            state.settings.name
+          }}，欢迎回来。把理解留给今天，把进步留在记录里。
+        </p>
       </div>
       <span class="date-label">
         <AppIcon name="calendar" :size="18" />{{ today }}
@@ -16,78 +20,171 @@
           <div class="panel-heading">
             <div>
               <h2>我的知识星图</h2>
-              <p class="muted small">{{ graph ? graph.title : '从自己的学习方向开始' }}</p>
+              <p class="muted small">
+                {{ graph ? graph.title : "每门课程都可以有自己的学习路线" }}
+              </p>
             </div>
-            <router-link to="/app/knowledge" class="text-button">完整路线
+            <router-link
+              :to="{
+                path: '/app/knowledge',
+                query: activeCourseId ? { course: activeCourseId } : {},
+              }"
+              class="text-button"
+              >完整路线
               <AppIcon name="arrow" :size="16" />
             </router-link>
           </div>
-          <KnowledgeGraph v-if="graph && graph.nodes.length" :title="graph.title"
-            :nodes="graph.nodes" :edges="graph.edges" :selected="selectedNodeId" @select="select" />
+          <label v-if="state.courses.length" class="overview-course-choice"
+            >选择课程<select
+              v-model="activeCourseId"
+              aria-label="选择课程"
+              class="input"
+              @change="changeCourse"
+            >
+              <option
+                v-for="course in state.courses"
+                :key="course.id"
+                :value="course.id"
+              >
+                {{ course.name }}
+              </option>
+            </select></label
+          >
+          <p v-if="graphLoading" class="muted" role="status">
+            正在读取课程星图…
+          </p>
+          <p v-else-if="graphError" class="error-message" role="alert">
+            {{ graphError }}
+            <button class="text-button" @click="prepareGraph">重新加载</button>
+          </p>
+          <KnowledgeGraph
+            v-else-if="graph && graph.nodes.length"
+            :title="graph.title"
+            :nodes="graph.nodes"
+            :edges="graph.edges"
+            :selected="selectedNodeId"
+            @select="select"
+          />
           <div v-else class="overview-graph-empty">
-            <p>{{ state.mode === 'demo' ? '登录账号，创建并保存属于你的知识星图。' : '当前路线还没有知识点。' }}</p>
-            <router-link :to="state.mode === 'demo' ? '/login' : '/setup-knowledge'" class="button secondary">
-              {{ state.mode === 'demo' ? '登录并配置星图' : '配置星图' }}
+            <p>
+              {{
+                currentCourse
+                  ? "这门课程还没有知识点，可根据学习任务手动配置。"
+                  : "先创建课程，再导入资料或配置知识星图。"
+              }}
+            </p>
+            <router-link
+              :to="state.mode === 'demo' ? '/login' : graphEditorPath"
+              class="button secondary"
+            >
+              {{
+                state.mode === "demo"
+                  ? "登录账号"
+                  : currentCourse
+                    ? "配置课程星图"
+                    : "创建课程"
+              }}
             </router-link>
           </div>
-          <router-link v-if="graph" to="/setup-knowledge" class="text-button">调整学习方向与目标</router-link>
+          <router-link
+            v-if="graph && !graphLoading && !graphError"
+            :to="graphEditorPath"
+            class="text-button"
+            >编辑本课程知识点与关系</router-link
+          >
         </article>
         <section class="panel stat-strip">
           <div>
-            <span>我的课程</span><strong>
+            <span>我的课程</span
+            ><strong>
               <AnimatedNumber :value="state.courses.length" /> <small>门</small>
             </strong>
           </div>
           <div>
-            <span>已作答</span><strong>
-              <AnimatedNumber :value="state.attempts.length" /> <small>次</small>
+            <span>已作答</span
+            ><strong>
+              <AnimatedNumber :value="state.attempts.length" />
+              <small>次</small>
             </strong>
           </div>
           <div>
-            <span>正确率</span><strong>
-              <AnimatedNumber v-if="state.attempts.length" :value="rate" /><template v-else>—</template><small>{{
-                state.attempts.length ? '%' : '' }}</small>
+            <span>正确率</span
+            ><strong>
+              <AnimatedNumber
+                v-if="state.attempts.length"
+                :value="rate"
+              /><template v-else>—</template
+              ><small>{{ state.attempts.length ? "%" : "" }}</small>
             </strong>
           </div>
           <div>
-            <span>待完成计划</span><strong>
+            <span>待完成计划</span
+            ><strong>
               <AnimatedNumber :value="tasks.length" /> <small>项</small>
             </strong>
           </div>
         </section>
         <div class="section-heading">
           <h2>继续学习</h2>
-          <router-link to="/app/courses" class="text-button">查看全部
+          <router-link to="/app/courses" class="text-button"
+            >查看全部
             <AppIcon name="arrow" :size="16" />
           </router-link>
         </div>
-        <CourseCard v-for="course in courses" :key="course.id" :course="course"
-          :material-count="state.materials.filter((m) => m.courseId === course.id).length" @archive="archive" />
+        <CourseCard
+          v-for="course in courses"
+          :key="course.id"
+          :course="course"
+          :material-count="
+            state.materials.filter((m) => m.courseId === course.id).length
+          "
+          @archive="archive"
+        />
       </section>
       <aside class="right-rail">
         <section class="panel">
           <div class="panel-heading">
             <h2>今日复习</h2>
-            <router-link to="/app/plan" class="text-button">管理计划</router-link>
+            <router-link to="/app/plan" class="text-button"
+              >管理计划</router-link
+            >
           </div>
-          <div v-for="(task, i) in tasks.slice(0, 3)" :key="task.id" class="task-compact">
+          <div
+            v-for="(task, i) in tasks.slice(0, 3)"
+            :key="task.id"
+            class="task-compact"
+          >
             <span class="step-circle">{{ i + 1 }}</span>
             <div>
-              <strong>{{ task.title }}</strong><small>{{ task.minutes }} 分钟 · {{ task.date || '随时开始'
-                }}</small><router-link :to="task.target || '/app/plan'" class="text-button">开始学习
+              <strong>{{ task.title }}</strong
+              ><small
+                >{{ task.minutes }} 分钟 · {{ task.date || "随时开始" }}</small
+              ><router-link :to="task.target || '/app/plan'" class="text-button"
+                >开始学习
                 <AppIcon name="chevron" :size="14" />
               </router-link>
             </div>
           </div>
-          <p v-if="!tasks.length" class="muted">今天的任务都已完成，给自己一点休息时间。</p>
+          <p v-if="!tasks.length" class="muted">
+            今天的任务都已完成，给自己一点休息时间。
+          </p>
         </section>
         <section class="panel">
           <div class="panel-heading">
             <h2>问一个学习问题</h2>
             <AppIcon name="spark" />
           </div>
-          <p class="muted">{{ graph ? graph.goal : '带着自己的问题，从课程资料中寻找线索。' }}</p>
-          <router-link :to="graph ? { path: '/app/studio', query: { course: graph.courseId } } : '/app/studio'" class="button secondary full-width">进入研习室
+          <p class="muted">
+            {{ graph ? graph.goal : "带着自己的问题，从课程资料中寻找线索。" }}
+          </p>
+          <router-link
+            :to="
+              graph
+                ? { path: '/app/studio', query: { course: graph.courseId } }
+                : '/app/studio'
+            "
+            class="button secondary full-width"
+            >进入研习室
             <AppIcon name="arrow" :size="18" />
           </router-link>
         </section>
@@ -102,63 +199,100 @@
   </div>
 </template>
 <script>
-import KnowledgeGraph from '../components/KnowledgeGraph.vue'
-import CourseCard from '../components/CourseCard.vue'
-import { state, persist, notify } from '../store'
+import KnowledgeGraph from "../components/KnowledgeGraph.vue";
+import CourseCard from "../components/CourseCard.vue";
+import { state, persist, notify } from "../store";
+import courseGraph from "../mixins/courseGraph";
+import { loadTasks, archiveCourse } from "../services/courses";
 export default {
-  name: 'Overview',
+  name: "Overview",
   components: { KnowledgeGraph, CourseCard },
+  mixins: [courseGraph],
   data: () => ({
     state,
-    selected: '',
-    today: new Date().toLocaleDateString('zh-CN', {
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long'
-    })
+    selected: "",
+    today: new Date().toLocaleDateString("zh-CN", {
+      month: "long",
+      day: "numeric",
+      weekday: "long",
+    }),
   }),
   computed: {
-    graph() {
-      return this.state.mode === 'account' ? this.state.knowledgeGraph : null
-    },
     selectedNodeId() {
-      const nodes = this.graph?.nodes || []
-      return nodes.some(node => node.id === this.selected) ? this.selected : nodes[0]?.id || ''
+      const nodes = this.graph?.nodes || [];
+      return nodes.some((node) => node.id === this.selected)
+        ? this.selected
+        : nodes[0]?.id || "";
     },
     courses() {
-      return state.courses.filter((c) => !c.archived).slice(0, 2)
+      return state.courses.filter((c) => !c.archived).slice(0, 2);
     },
     tasks() {
-      return state.tasks.filter((t) => !t.done)
+      return state.tasks.filter((t) => !t.done);
     },
     rate() {
       return state.attempts.length
-        ? Math.round((state.attempts.filter((a) => a.correct).length / state.attempts.length) * 100)
-        : '—'
-    }
+        ? Math.round(
+            (state.attempts.filter((a) => a.correct).length /
+              state.attempts.length) *
+              100,
+          )
+        : "—";
+    },
   },
   methods: {
     select(node) {
-      this.selected = node.id
-      notify('已选择「' + node.label + '」，可在完整路线中查看详情。')
+      this.selected = node.id;
+      notify("已选择「" + node.label + "」，可在完整路线中查看详情。");
     },
-    archive(c) {
-      c.archived = !c.archived
-      persist()
+    async archive(c) {
+      if (state.mode === "account" && c._remote) {
+        try {
+          await archiveCourse(c, !c.archived);
+        } catch (error) {
+          notify(error.message);
+        }
+        return;
+      }
+      c.archived = !c.archived;
+      persist();
+    },
+  },
+  async created() {
+    try {
+      await loadTasks();
+    } catch (error) {
+      notify(error.message);
     }
-  }
-}
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
 .overview-graph-empty {
   padding: 40px 0;
   color: @muted;
-  p { margin-bottom: 20px; }
+  p {
+    margin-bottom: 20px;
+  }
+}
+.overview-course-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  color: @muted;
+  font-size: 13px;
+  select {
+    width: auto;
+    max-width: 70%;
+    background: @bg;
+    color: @text;
+  }
 }
 
 .overview-heading {
@@ -187,7 +321,7 @@ export default {
   padding: 16px 12px;
   margin-top: 16px;
 
-  >div {
+  > div {
     text-align: center;
     border-right: 1px solid #1d3d52;
 
@@ -195,7 +329,7 @@ export default {
       border-right: 0;
     }
 
-    >span {
+    > span {
       display: block;
       color: #88b0d0;
       font-size: 12px;
@@ -270,11 +404,11 @@ export default {
     gap: 0;
     padding: 14px 5px;
 
-    >div>span {
+    > div > span {
       font-size: 10px;
     }
 
-    >div strong {
+    > div strong {
       font-size: 22px;
     }
   }

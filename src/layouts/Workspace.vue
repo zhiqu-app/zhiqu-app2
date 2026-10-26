@@ -33,7 +33,8 @@
           >
             <AppIcon name="menu" />
           </button>
-          <span>学习空间
+          <span
+            >学习空间
             <em>/</em>
             <strong>{{ $route.meta.title }}</strong>
           </span>
@@ -50,7 +51,8 @@
           v-if="state.settings.reminders"
           class="icon-button notification-button"
           aria-label="学习提醒"
-          @click="notify('今天也记得给自己留一点学习时间。')">
+          @click="notify('今天也记得给自己留一点学习时间。')"
+        >
           <AppIcon name="bell" />
           <i />
         </button>
@@ -59,15 +61,16 @@
         </router-link>
       </header>
       <div class="demo-banner">
-        <span><i class="dot cyan" />
-        {{
-            state.mode === 'account' ? '账号已登录' : '本地演示空间'
-          }}</span>
-          <span>{{
-          state.mode === 'account'
-            ? '账号与星图已接入后端 · 其余学习数据暂存本机'
-            : '数据保存在此浏览器 · AI 使用本地资料检索演示'
-        }}
+        <span
+          ><i class="dot cyan" />
+          {{ state.mode === "account" ? "账号已登录" : "本地演示空间" }}</span
+        >
+        <span
+          >{{
+            state.mode === "account"
+              ? "课程、资料、星图与复习任务已连接账号 · 练习等其余功能沿用原数据模式"
+              : "数据保存在此浏览器 · AI 使用本地资料检索演示"
+          }}
         </span>
         <router-link to="/welcome">产品首页</router-link>
       </div>
@@ -77,22 +80,36 @@
       <main
         class="workspace-content"
         :aria-busy="navigation.pending ? 'true' : 'false'"
-        :inert="navigation.overlayVisible || navigation.overlayLeaving ? '' : null">
-        <transition name="page-view" mode="out-in" :css="allowMotion" @after-enter="workspaceReady">
+        :inert="
+          navigation.overlayVisible || navigation.overlayLeaving ? '' : null
+        "
+      >
+        <transition
+          name="page-view"
+          mode="out-in"
+          :css="allowMotion"
+          @after-enter="workspaceReady"
+        >
           <router-view
             :key="$route.path"
             v-page-reveal
             class="route-page"
-            :data-route-path="$route.fullPath"/>
+            :data-route-path="$route.fullPath"
+          />
         </transition>
       </main>
     </div>
-    <nav class="mobile-nav" aria-label="手机主导航" :inert="menuOpen ? '' : null">
+    <nav
+      class="mobile-nav"
+      aria-label="手机主导航"
+      :inert="menuOpen ? '' : null"
+    >
       <router-link
         v-for="item in mobileItems"
         :key="item.path"
         :to="item.path"
-        :class="{ active: isActive(item.key) }">
+        :class="{ active: isActive(item.key) }"
+      >
         <AppIcon :name="item.icon" />
         <span>{{ item.label }}</span>
       </router-link>
@@ -100,98 +117,110 @@
   </div>
 </template>
 <script>
-import SideMenu from '../components/SideMenu.vue'
-import UserAvatar from '../components/UserAvatar.vue'
-import { state, notify } from '../store'
-import { navigation, revealPage } from '../utils/navigation'
-import { motionAllowed } from '../utils/motion'
+import SideMenu from "../components/SideMenu.vue";
+import UserAvatar from "../components/UserAvatar.vue";
+import { state, notify } from "../store";
+import { navigation, revealPage } from "../utils/navigation";
+import { motionAllowed } from "../utils/motion";
 export default {
-  name: 'Workspace',
+  name: "Workspace",
   components: { SideMenu, UserAvatar },
   data: () => ({
     state,
     navigation,
     menuOpen: false,
     narrow: window.innerWidth < 1200,
-    searchText: '',
+    searchText: "",
     mobileItems: [
-      { key: 'overview', path: '/app/overview', label: '总览', icon: 'home' },
-      { key: 'courses', path: '/app/courses', label: '课程', icon: 'book' },
-      { key: 'studio', path: '/app/studio', label: '研习室', icon: 'graph' },
-      { key: 'practice', path: '/app/practice', label: '练习', icon: 'edit' },
-      { key: 'settings', path: '/app/settings', label: '我的', icon: 'settings' }
-    ]
+      { key: "overview", path: "/app/overview", label: "总览", icon: "home" },
+      { key: "courses", path: "/app/courses", label: "课程", icon: "book" },
+      { key: "studio", path: "/app/studio", label: "研习室", icon: "graph" },
+      { key: "practice", path: "/app/practice", label: "练习", icon: "edit" },
+      {
+        key: "settings",
+        path: "/app/settings",
+        label: "我的",
+        icon: "settings",
+      },
+    ],
   }),
   computed: {
     allowMotion() {
-      return motionAllowed()
-    }
+      return motionAllowed();
+    },
   },
   mounted() {
     this.onResize = () => {
-      this.narrow = window.innerWidth < 1200
-      if (!this.narrow) this.menuOpen = false
-    }
-    window.addEventListener('resize', this.onResize)
+      this.narrow = window.innerWidth < 1200;
+      if (!this.narrow) this.menuOpen = false;
+    };
+    window.addEventListener("resize", this.onResize);
   },
   beforeDestroy() {
-    window.removeEventListener('resize', this.onResize)
-    document.body.style.overflow = ''
+    window.removeEventListener("resize", this.onResize);
+    document.body.style.overflow = "";
   },
   methods: {
     notify,
     workspaceReady(element) {
-      revealPage(element.dataset.routePath, 'workspace')
+      revealPage(element.dataset.routePath, "workspace");
     },
     closeMenu() {
-      this.menuOpen = false
+      this.menuOpen = false;
       this.$nextTick(() => {
-        if (this.$refs.menuButton) this.$refs.menuButton.focus()
-      })
+        if (this.$refs.menuButton) this.$refs.menuButton.focus();
+      });
     },
     trapMenu(event) {
-      if (!this.menuOpen || !this.narrow) return
-      const elements = this.$refs.sidebar.querySelectorAll('a[href], button')
+      if (!this.menuOpen || !this.narrow) return;
+      const elements = this.$refs.sidebar.querySelectorAll("a[href], button");
       const first = elements[0],
-        last = elements[elements.length - 1]
+        last = elements[elements.length - 1];
       if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
+        event.preventDefault();
+        last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
+        event.preventDefault();
+        first.focus();
       }
     },
     isActive(key) {
       return (
         key === this.$route.name ||
-        (key === 'courses' && this.$route.name === 'course') ||
-        (key === 'practice' && this.$route.name === 'mistakes')
-      )
+        (key === "courses" && this.$route.name === "course") ||
+        (key === "practice" && this.$route.name === "mistakes")
+      );
     },
     search() {
-      if (this.$route.name === 'courses' && this.$route.query.q === this.searchText) return
-      this.$router.push({ path: '/app/courses', query: { q: this.searchText } })
-    }
+      if (
+        this.$route.name === "courses" &&
+        this.$route.query.q === this.searchText
+      )
+        return;
+      this.$router.push({
+        path: "/app/courses",
+        query: { q: this.searchText },
+      });
+    },
   },
   watch: {
     menuOpen(open) {
-      document.body.style.overflow = open && this.narrow ? 'hidden' : ''
+      document.body.style.overflow = open && this.narrow ? "hidden" : "";
       if (open && this.narrow)
         this.$nextTick(() => {
-          const first = this.$refs.sidebar.querySelector('button')
-          if (first) first.focus()
-        })
+          const first = this.$refs.sidebar.querySelector("button");
+          if (first) first.focus();
+        });
     },
     $route() {
-      this.menuOpen = false
-    }
-  }
-}
+      this.menuOpen = false;
+    },
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
@@ -203,7 +232,7 @@ export default {
 }
 .workspace {
   min-height: 100dvh;
-  background: @bg url('/assets/workspace.png') center top / cover fixed;
+  background: @bg url("/assets/workspace.png") center top / cover fixed;
 }
 .sidebar-container {
   position: fixed;
