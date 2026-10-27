@@ -10,8 +10,8 @@
       </button>
     </header>
     <div class="filter-bar panel">
-      <span>线性代数 · 练习记录</span
-      ><select v-model="range" class="input" aria-label="报告时间范围">
+      <span>知识点练习记录</span>
+      <select v-model="range" class="input" aria-label="报告时间范围">
         <option value="all">全部时间</option>
         <option value="7">最近 7 天</option>
         <option value="30">最近 30 天</option>

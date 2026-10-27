@@ -76,7 +76,7 @@ export async function createCourse(form) {
   return saved;
 }
 
-// 旧版本本机课程由用户显式同步；保留本机资料并重映射课程引用，不假称资料已上传。
+// 旧版本本机课程由用户显式同步；保留本机资料并重映射课程引用。
 export async function syncLocalCourse(course) {
   const saved = await createCourse(course);
   state.courses = state.courses.filter((item) => item.id !== course.id);
