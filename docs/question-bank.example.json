@@ -1,0 +1,20 @@
+{
+  "questions": [
+    {
+      "title": "TCP 提供哪一种服务？",
+      "options": ["可靠的字节流传输", "只支持广播通信", "不需要端口的通信"],
+      "answer": 0,
+      "explanation": "TCP 提供面向连接的可靠字节流传输，端口用于区分应用进程。",
+      "point": "可靠传输",
+      "source": null
+    },
+    {
+      "title": "DNS 的主要作用是什么？",
+      "options": ["替代所有路由器", "将域名解析为相关的资源记录", "保证所有数据包可靠到达"],
+      "answer": 1,
+      "explanation": "DNS 用于查询域名对应的资源记录，例如 A/AAAA 地址记录。",
+      "point": "域名解析",
+      "source": null
+    }
+  ]
+}

@@ -23,7 +23,10 @@
         <p class="muted">使用已注册邮箱和密码登录你的学习空间。</p>
         <form @submit.prevent="submit">
           <label class="field-label" for="email">邮箱</label>
-          <div class="input-with-icon" :class="{ focused: focused === 'email' }">
+          <div
+            class="input-with-icon"
+            :class="{ focused: focused === 'email' }"
+          >
             <AppIcon name="mail" :size="18" />
             <input
               id="email"
@@ -41,7 +44,10 @@
             />
           </div>
           <label class="field-label" for="password">密码</label>
-          <div class="input-with-icon" :class="{ focused: focused === 'password' }">
+          <div
+            class="input-with-icon"
+            :class="{ focused: focused === 'password' }"
+          >
             <AppIcon name="lock" :size="18" />
             <input
               id="password"
@@ -73,99 +79,144 @@
               type="button"
               class="text-button"
               @click="notify('尚未提供找回密码功能。没有账号可以先注册。')"
-              >
+            >
               需要帮助？
             </button>
           </div>
           <p v-if="error" class="error-message" role="alert">{{ error }}</p>
-          <button class="button primary full-width" type="submit" :disabled="busy">
-            {{ busy ? '正在验证账号…' : '登录学习空间' }}
+          <button
+            class="button primary full-width"
+            type="submit"
+            :disabled="busy"
+          >
+            {{ busy ? "正在验证账号…" : "登录学习空间" }}
             <AppIcon name="arrow" :size="18" />
           </button>
         </form>
         <div class="login-divider"><span>或者</span></div>
-        <button class="button secondary full-width" :disabled="busy" @click="experience">
+        <button
+          class="button secondary full-width"
+          :disabled="busy"
+          @click="experience"
+        >
           体验示例课程（无需注册）
         </button>
         <p class="login-note">
-          还没有账号？<router-link to="/register" class="text-button">使用邮箱注册</router-link>
+          <button
+            class="text-button"
+            type="button"
+            :disabled="busy"
+            @click="onlineExperience"
+          >
+            打开在线示例空间
+          </button>
+        </p>
+        <p class="login-note">
+          还没有账号？<router-link to="/register" class="text-button"
+            >使用邮箱注册</router-link
+          >
         </p>
       </section>
     </div>
   </main>
 </template>
 <script>
-import PublicHeader from '../components/PublicHeader.vue'
-import BrandLogo from '../components/BrandLogo.vue'
-import BookStage from '../components/BookStage.vue'
-import { notify } from '../store'
-import { loginAccount, enterDemo } from '../services/auth'
+import PublicHeader from "../components/PublicHeader.vue";
+import BrandLogo from "../components/BrandLogo.vue";
+import BookStage from "../components/BookStage.vue";
+import { notify } from "../store";
+import { loginAccount, enterDemo, enterOnlineDemo } from "../services/auth";
 export default {
-  name: 'Login',
+  name: "Login",
   components: { PublicHeader, BrandLogo, BookStage },
-  data: () => ({ email: '', password: '', visible: false, focused: '', error: '', busy: false }),
+  data: () => ({
+    email: "",
+    password: "",
+    visible: false,
+    focused: "",
+    error: "",
+    busy: false,
+  }),
   computed: {
     artState() {
-      return this.focused === 'email'
-        ? 'email'
-        : this.focused === 'password'
+      return this.focused === "email"
+        ? "email"
+        : this.focused === "password"
           ? this.visible
-            ? 'reveal'
-            : 'password'
-          : 'idle'
-    }
+            ? "reveal"
+            : "password"
+          : "idle";
+    },
   },
   mounted() {
-    this.email = typeof this.$route.query.email === 'string' ? this.$route.query.email : ''
-    if (this.$route.query.reason === 'connection')
-      this.error = '暂时无法验证会话，请检查后端服务后重试。'
+    this.email =
+      typeof this.$route.query.email === "string"
+        ? this.$route.query.email
+        : "";
+    if (this.$route.query.reason === "connection")
+      this.error = "暂时无法验证会话，请检查后端服务后重试。";
   },
   methods: {
+    async onlineExperience() {
+      if (this.busy) return;
+      this.busy = true;
+      this.error = "";
+      try {
+        await enterOnlineDemo();
+        await this.$router.push("/app/overview");
+      } catch (error) {
+        this.error = error.message;
+      } finally {
+        this.busy = false;
+      }
+    },
     notify,
     async submit() {
-      if (this.busy) return
-      this.error = ''
+      if (this.busy) return;
+      this.error = "";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
-        this.error = '请输入有效的邮箱地址。'
-        return
+        this.error = "请输入有效的邮箱地址。";
+        return;
       }
       if (this.password.length < 8 || this.password.length > 128) {
-        this.error = '密码长度应为 8～128 位。'
-        return
+        this.error = "密码长度应为 8～128 位。";
+        return;
       }
-      this.busy = true
+      this.busy = true;
       try {
-        await loginAccount(this.email, this.password)
-        this.password = ''
-        const redirect = this.$route.query.redirect
+        await loginAccount(this.email, this.password);
+        this.password = "";
+        const redirect = this.$route.query.redirect;
         await this.$router.replace(
-          typeof redirect === 'string' && redirect.startsWith('/app/') ? redirect : '/app/overview'
-        )
+          typeof redirect === "string" && redirect.startsWith("/app/")
+            ? redirect
+            : "/app/overview",
+        );
       } catch (error) {
-        if (error.name !== 'NavigationDuplicated')
-          this.error = error.message || '登录失败，请重试。'
+        if (error.name !== "NavigationDuplicated")
+          this.error = error.message || "登录失败，请重试。";
       } finally {
-        this.busy = false
+        this.busy = false;
       }
     },
     async experience() {
-      if (this.busy) return
-      this.busy = true
+      if (this.busy) return;
+      this.busy = true;
       try {
-        await enterDemo()
-        await this.$router.push('/app/overview')
+        await enterDemo();
+        await this.$router.push("/app/overview");
       } catch (error) {
-        this.error = error.message
+        this.error = error.message;
       } finally {
-        this.busy = false
+        this.busy = false;
       }
-    }
-  }
-}
+    },
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
@@ -266,7 +317,7 @@ export default {
   margin: 22px 0;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: 0;

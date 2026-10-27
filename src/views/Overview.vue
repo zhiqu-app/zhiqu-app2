@@ -93,37 +93,44 @@
             >编辑本课程知识点与关系</router-link
           >
         </article>
-        <section class="panel stat-strip">
+        <section
+          v-if="state.mode !== 'account' || overview"
+          class="panel stat-strip"
+        >
           <div>
             <span>我的课程</span
             ><strong>
-              <AnimatedNumber :value="state.courses.length" /> <small>门</small>
+              <AnimatedNumber :value="totalCourses" /> <small>门</small>
             </strong>
           </div>
           <div>
             <span>已作答</span
             ><strong>
-              <AnimatedNumber :value="state.attempts.length" />
+              <AnimatedNumber :value="attemptCount" />
               <small>次</small>
             </strong>
           </div>
           <div>
             <span>正确率</span
             ><strong>
-              <AnimatedNumber
-                v-if="state.attempts.length"
-                :value="rate"
-              /><template v-else>—</template
-              ><small>{{ state.attempts.length ? "%" : "" }}</small>
+              <AnimatedNumber v-if="attemptCount" :value="rate" /><template
+                v-else
+                >—</template
+              ><small>{{ attemptCount ? "%" : "" }}</small>
             </strong>
           </div>
           <div>
             <span>待完成计划</span
             ><strong>
-              <AnimatedNumber :value="tasks.length" /> <small>项</small>
+              <AnimatedNumber :value="pendingCount" /> <small>项</small>
             </strong>
           </div>
         </section>
+        <p v-else-if="overviewError" class="error-message" role="alert">
+          {{ overviewError }}
+          <button class="text-button" @click="readStats">重新读取统计</button>
+        </p>
+        <p v-else class="panel muted" role="status">正在读取学习统计…</p>
         <div class="section-heading">
           <h2>继续学习</h2>
           <router-link to="/app/courses" class="text-button"
@@ -204,6 +211,7 @@ import CourseCard from "../components/CourseCard.vue";
 import { state, persist, notify } from "../store";
 import courseGraph from "../mixins/courseGraph";
 import { loadTasks, archiveCourse } from "../services/courses";
+import { loadOverview } from "../services/questions";
 export default {
   name: "Overview",
   components: { KnowledgeGraph, CourseCard },
@@ -211,6 +219,8 @@ export default {
   data: () => ({
     state,
     selected: "",
+    overview: null,
+    overviewError: "",
     today: new Date().toLocaleDateString("zh-CN", {
       month: "long",
       day: "numeric",
@@ -218,6 +228,21 @@ export default {
     }),
   }),
   computed: {
+    totalCourses() {
+      return state.mode === "account"
+        ? this.overview?.totalCourses || 0
+        : state.courses.length;
+    },
+    attemptCount() {
+      return state.mode === "account"
+        ? this.overview?.attemptCount || 0
+        : state.attempts.length;
+    },
+    pendingCount() {
+      return state.mode === "account"
+        ? this.overview?.pendingTasks || 0
+        : this.tasks.length;
+    },
     selectedNodeId() {
       const nodes = this.graph?.nodes || [];
       return nodes.some((node) => node.id === this.selected)
@@ -231,6 +256,7 @@ export default {
       return state.tasks.filter((t) => !t.done);
     },
     rate() {
+      if (state.mode === "account") return this.overview?.correctRate || 0;
       return state.attempts.length
         ? Math.round(
             (state.attempts.filter((a) => a.correct).length /
@@ -241,6 +267,15 @@ export default {
     },
   },
   methods: {
+    async readStats() {
+      if (state.mode !== "account") return;
+      this.overviewError = "";
+      try {
+        this.overview = await loadOverview();
+      } catch (error) {
+        this.overviewError = error.message;
+      }
+    },
     select(node) {
       this.selected = node.id;
       notify("已选择「" + node.label + "」，可在完整路线中查看详情。");
@@ -259,6 +294,7 @@ export default {
     },
   },
   async created() {
+    this.readStats();
     try {
       await loadTasks();
     } catch (error) {

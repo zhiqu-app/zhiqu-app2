@@ -53,6 +53,11 @@
               state.materials.filter((m) => m.courseId === course.id).length
             "
             @archive="toggleArchive"
+            :deletable="state.mode === 'account' && course._remote"
+            @delete="
+              deleteTarget = $event;
+              deleteError = '';
+            "
           />
           <div
             v-if="!loading && !loadError && !filtered.length"
@@ -142,6 +147,33 @@
         </div>
       </form>
     </AppModal>
+    <AppModal
+      v-if="deleteTarget"
+      :title="'删除课程：' + deleteTarget.name + '？'"
+      @close="closeDelete"
+      ><p>
+        会删除这门课程的资料和 PDF
+        原文件、题库、作答、星图和问答记录，其他课程不受影响。
+      </p>
+      <p v-if="deleteError" class="error-message" role="alert">
+        {{ deleteError }}
+      </p>
+      <div class="modal-actions">
+        <button
+          class="button secondary"
+          :disabled="deleting"
+          @click="closeDelete"
+        >
+          取消</button
+        ><button
+          class="button danger"
+          :disabled="deleting"
+          @click="confirmDelete"
+        >
+          {{ deleting ? "正在删除…" : "确认删除课程" }}
+        </button>
+      </div></AppModal
+    >
   </div>
 </template>
 <script>
@@ -149,6 +181,7 @@ import CourseCard from "../components/CourseCard.vue";
 import AppModal from "../components/AppModal.vue";
 import { state, persist, uid, notify } from "../store";
 import { loadCourses, createCourse, archiveCourse } from "../services/courses";
+import { deleteAccountCourse } from "../services/platform";
 export default {
   name: "Courses",
   components: { CourseCard, AppModal },
@@ -158,6 +191,9 @@ export default {
       search: this.$route.query.q || "",
       filter: "all",
       showCreate: false,
+      deleteTarget: null,
+      deleting: false,
+      deleteError: "",
       loading: false,
       loadError: "",
       createError: "",
@@ -192,6 +228,23 @@ export default {
     },
   },
   methods: {
+    closeDelete() {
+      if (!this.deleting) this.deleteTarget = null;
+    },
+    async confirmDelete() {
+      if (this.deleting || !this.deleteTarget) return;
+      this.deleting = true;
+      this.deleteError = "";
+      try {
+        await deleteAccountCourse(this.deleteTarget);
+        this.deleteTarget = null;
+        notify("课程及关联学习记录已删除");
+      } catch (error) {
+        this.deleteError = error.message;
+      } finally {
+        this.deleting = false;
+      }
+    },
     async load() {
       this.loading = true;
       this.loadError = "";

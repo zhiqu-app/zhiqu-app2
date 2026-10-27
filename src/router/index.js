@@ -47,6 +47,12 @@ const router = new Router({
           meta: { title: "我的课程" },
         },
         {
+          path: "courses/:id/questions",
+          name: "question-bank",
+          component: lazyPage(() => import("../views/QuestionBank.vue")),
+          meta: { title: "配置课程题库" },
+        },
+        {
           path: "courses/:id/knowledge/edit",
           name: "course-knowledge-edit",
           component: lazyPage(
@@ -83,6 +89,12 @@ const router = new Router({
           name: "mistakes",
           component: lazyPage(() => import("../views/Mistakes.vue")),
           meta: { title: "错题本" },
+        },
+        {
+          path: "history",
+          name: "history",
+          component: lazyPage(() => import("../views/AttemptHistory.vue")),
+          meta: { title: "作答历史" },
         },
         {
           path: "reports",

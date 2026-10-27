@@ -3,92 +3,190 @@
     <header class="page-heading">
       <div>
         <h1>AI 研习室</h1>
-        <p>基于课程资料阅读与提问，边学边问，加深理解。</p>
+        <p>阅读课程资料、提问并回看之前的答疑记录。</p>
       </div>
-      <select v-model="courseId" class="input course-select" aria-label="选择研习课程" @change="courseChanged">
-        <option v-for="c in state.courses" :key="c.id" :value="c.id">{{ c.name }}</option>
+      <select
+        v-model="courseId"
+        class="input course-select"
+        aria-label="选择研习课程"
+        @change="courseChanged"
+      >
+        <option
+          v-for="course in state.courses"
+          :key="course.id"
+          :value="course.id">
+          {{ course.name }}
+        </option>
       </select>
     </header>
+    <p v-if="loading" class="muted" role="status">
+      正在读取课程资料与问答历史…
+    </p>
+    <p v-if="loadError" class="error-message" role="alert">
+      {{ loadError }}
+      <button class="text-button" @click="load">重新加载</button>
+    </p>
     <div class="mobile-study-tabs tabs">
-        <button :class="{ active: tab === 'document' }" @click="tab = 'document'">
-            课程资料
-        </button>
-        <button :class="{ active: tab === 'chat' }" @click="tab = 'chat'">阅读答疑</button>
+      <button :class="{ active: tab === 'document' }" @click="tab = 'document'">
+        课程资料
+      </button>
+      <button :class="{ active: tab === 'chat' }" @click="tab = 'chat'">
+        阅读答疑
+      </button>
     </div>
     <div class="studio-layout">
-      <section class="panel document-panel" :class="{ 'mobile-hidden': tab !== 'document' }">
+      <section
+        class="panel document-panel"
+        :class="{ 'mobile-hidden': tab !== 'document' }">
         <div class="document-toolbar">
           <select v-model="materialId" aria-label="选择阅读资料">
-            <option v-for="m in materials" :key="m.id" :value="m.id">{{ m.name }}</option>
+            <option v-for="m in materials" :key="m.id" :value="m.id">
+              {{ m.name }}
+            </option>
             <option v-if="!materials.length" value="">暂无资料</option>
           </select>
-          <span class="badge">{{ material && material.type === 'PDF' ? '本地预览' : '文字资料' }}</span>
+            <span class="badge">{{
+            remoteCourse ? "账号课程资料" : "本机资料"
+          }}</span>
         </div>
-        <iframe v-if="material && material.url" :src="material.url" title="课程 PDF 预览" class="studio-pdf" />
-        <article v-else-if="material" ref="document" class="document-paper"
-            :class="{ 'source-highlight': highlighted }">
-            <span class="document-kicker">知序 · 课程资料</span>
-            <h2>{{ material.name.replace(/\.(txt|md)$/i, '') }}</h2>
-            <div v-for="(paragraph, i) in paragraphs" :key="i" class="paper-paragraph"
-                :class="{ definition: paragraph.startsWith('定义') || paragraph.startsWith('例') }">
-                {{ paragraph }}
-            </div>
-            <div class="paper-footer">
-                {{ material.sample ? '内置示例文字资料' : '本地导入资料' }} · 请结合原文核对
-            </div>
+        <div v-if="docLoading" class="empty-state" role="status">
+          正在读取原始文件…
+        </div>
+        <div v-else-if="docError" class="empty-state">
+          <p class="error-message" role="alert">{{ docError }}</p>
+          <button class="button secondary" @click="readDocument">
+            重试读取
+          </button>
+        </div>
+        <iframe
+          v-else-if="document && document.url"
+          :src="document.url"
+          title="课程 PDF 预览"
+          class="studio-pdf"
+        />
+        <article
+          v-else-if="document"
+          ref="document"
+          class="document-paper"
+          :class="{ 'source-highlight': highlighted }"
+        >
+          <span class="document-kicker">知序 · 课程资料</span>
+          <h2>{{ document.name.replace(/\.(txt|md)$/i, "") }}</h2>
+          <div v-for="(p, i) in paragraphs" :key="i" class="paper-paragraph">
+            {{ p }}
+          </div>
+          <div class="paper-footer">
+            {{ document._remote ? "已保存到账号" : "本机资料" }} ·
+            请结合原文核对
+          </div>
         </article>
         <div v-else class="empty-state">
-            <AppIcon name="file" :size="40" />
-            <h2>还没有课程资料</h2>
-            <p>先为当前课程导入一份 TXT、Markdown 或 PDF。</p>
-            <router-link :to="'/app/courses/' + courseId" class="button primary">导入资料</router-link>
+          <AppIcon name="file" :size="40" />
+          <h2>还没有课程资料</h2>
+          <p>在已建立的课程中导入 TXT、Markdown 或 PDF。</p>
+          <router-link
+            :to="courseId ? '/app/courses/' + courseId : '/app/courses'"
+            class="button primary"
+            >导入资料</router-link
+          >
         </div>
       </section>
-      <section class="panel chat-panel" :class="{ 'mobile-hidden': tab !== 'chat' }">
+      <section
+        class="panel chat-panel"
+        :class="{ 'mobile-hidden': tab !== 'chat' }"
+      >
         <div class="panel-heading">
           <h2>课程答疑</h2>
-          <span class="badge">本地检索演示</span>
+          <span class="badge">{{
+            remoteCourse
+              ? answerMode === "llm"
+                ? "模型答疑"
+                : answerMode === "retrieval"
+                  ? "课程资料检索"
+                  : "账号答疑"
+              : "本地检索演示"
+          }}
+          </span>
         </div>
-        <div ref="messages" class="chat-messages" aria-live="polite" aria-relevant="additions text">
+        <p v-if="historyError" class="error-message" role="alert">
+          {{ historyError }}
+          <button class="text-button" @click="courseChanged">重读历史</button>
+        </p>
+        <div ref="messages" class="chat-messages" aria-live="polite">
           <div class="chat-intro">
             <AppIcon name="spark" :size="28" />
             <h3>让问题带你走近理解</h3>
-            <p>当前使用关键词匹配课程文字，未连接大模型。引用来自实际展示的资料片段。</p>
-            <button v-for="q in suggestions" :key="q" class="suggestion-button" :disabled="busy" @click="send(q)">
-              {{ q }}
-              <AppIcon name="arrow" :size="16" />
+            <p>
+              {{
+                remoteCourse
+                  ? "问答与引用保存在账号中，下次进入这门课程可继续查看。"
+                  : "当前为本地体验，不保存到服务器。"
+              }}
+            </p>
+            <button
+              v-for="text in suggestions"
+              :key="text"
+              class="suggestion-button"
+              :disabled="busy || loading || !canAsk"
+              @click="send(text)">
+              {{ text }}<AppIcon name="arrow" :size="16" />
             </button>
           </div>
-          <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
+          <article
+            v-for="message in messages"
+            :key="message.id"
+            class="message"
+            :class="message.role"
+          >
             <UserAvatar v-if="message.role === 'user'" :size="30" />
             <div v-else class="assistant-avatar">
               <AppIcon name="book" :size="20" />
             </div>
             <div class="message-body">
               <p>{{ message.text }}</p>
-              <button v-for="(source, i) in message.sources" :key="i" class="source-chip" @click="locate(source)">
-                <AppIcon name="file" :size="16" />
-                {{ source.name }} · 原文片段
-                <AppIcon name="chevron" :size="14" />
+              <button
+                v-for="(source, i) in message.sources"
+                :key="i"
+                class="source-chip"
+                @click="locate(source)">
+                <AppIcon name="file" :size="16" />{{ source.name }} · 原文片段
               </button>
             </div>
           </article>
-          <div v-if="busy" class="muted small">正在显示资料检索结果…</div>
+          <p v-if="busy" class="muted small">正在查阅课程资料…</p>
         </div>
         <div class="chat-compose">
           <p class="small muted">
-            <AppIcon name="info" :size="14" />仅检索当前课程的文字资料；PDF 暂不参与检索。
+            <AppIcon name="info" :size="14" />{{
+              remoteCourse
+                ? "支持可解析的课程文字与 PDF；扫描图片暂无 OCR。"
+                : "仅检索本机文字资料。"
+            }}
           </p>
           <form @submit.prevent="send(question)">
-            <textarea v-model="question" aria-label="向课程资料提问" placeholder="结合课程资料提问…" rows="2" maxlength="1000"
-                @keydown.enter.exact.prevent="send(question)" />
-                <button v-if="busy" class="button secondary" type="button" @click="stop">
-                    停止
-                </button>
-                <button v-else class="send-button"
-                :disabled="!question.trim() || !searchable.length" aria-label="发送问题">
-                    <AppIcon name="send" />
-                </button>
+            <textarea
+              v-model="question"
+              aria-label="向课程资料提问"
+              placeholder="结合课程资料提问…"
+              rows="2"
+              maxlength="2000"
+              @keydown.enter.exact.prevent="send(question)"/>
+            <button
+              v-if="busy"
+              class="button secondary"
+              type="button"
+              @click="stop"
+            >
+              停止
+            </button>
+            <button
+              v-else
+              class="send-button"
+              :disabled="!question.trim() || !canAsk || loading"
+              aria-label="发送问题"
+            >
+              <AppIcon name="send" />
+            </button>
           </form>
         </div>
       </section>
@@ -96,153 +194,250 @@
   </div>
 </template>
 <script>
-import UserAvatar from '../components/UserAvatar.vue'
-import { state, uid, notify } from '../store'
-import { askAssistant } from '../services/assistant'
+import UserAvatar from "../components/UserAvatar.vue";
+import { state, uid, notify } from "../store";
+import { askAssistant } from "../services/assistant";
+import {
+  loadCourses,
+  getCourse,
+  loadMaterials,
+  previewMaterial,
+} from "../services/courses";
+import {
+  askAccountAssistant,
+  loadAssistantHistory,
+} from "../services/platform";
 export default {
-  name: 'Studio',
+  name: "Studio",
   components: { UserAvatar },
-  data() {
-    const courseId = state.courses.some((c) => c.id === this.$route.query.course)
-      ? this.$route.query.course
-      : (state.courses[0] || {}).id
-    return {
-      state,
-      courseId,
-      materialId: '',
-      question: '',
-      messages: [],
-      busy: false,
-      tab: 'chat',
-      highlighted: false,
-      generation: 0
-    }
-  },
+  data: () => ({
+    state,
+    courseId: "",
+    materialId: "",
+    document: null,
+    question: "",
+    messages: [],
+    busy: false,
+    tab: "chat",
+    highlighted: false,
+    loading: false,
+    loadError: "",
+    docLoading: false,
+    docError: "",
+    historyError: "",
+    answerMode: "",
+    generation: 0,
+    loadRevision: 0,
+    docRevision: 0,
+  }),
   computed: {
-    materials() {
-      return state.materials.filter((m) => m.courseId === this.courseId)
+    course() {
+      return state.courses.find((c) => c.id === this.courseId);
     },
-    material() {
-      return this.materials.find((m) => m.id === this.materialId)
+    remoteCourse() {
+      return state.mode === "account" && this.course?._remote;
+    },
+    materials() {
+      return state.materials.filter((m) => m.courseId === this.courseId);
     },
     searchable() {
-      return this.materials.filter((m) => m.text)
+      return this.materials.filter((m) => m.text);
+    },
+    canAsk() {
+      return this.remoteCourse
+        ? this.materials.some((m) => m._remote && m.parseStatus === "ready")
+        : state.mode === "demo" && this.searchable.length > 0;
     },
     paragraphs() {
-      return this.material && this.material.text
-        ? this.material.text.split(/\n+/).filter(Boolean)
-        : []
+      return this.document?.text
+        ? this.document.text.split(/\n+/).filter(Boolean)
+        : [];
     },
     suggestions() {
-      if (state.mode === 'account') {
-        const graph = state.knowledgeGraph
-        return graph && graph.courseId === this.courseId
-          ? graph.nodes.slice(0, 2).map(node => '如何理解' + node.label + '？')
-          : ['这份资料有哪些核心概念？', '能用一个例子解释吗？']
-      }
-      return this.courseId === 'structures'
-        ? ['二叉树是什么？', '中序遍历的顺序是什么？']
-        : ['对角矩阵的特征值怎么求？', '特征向量满足什么条件？']
-    }
+      const nodes = state.knowledgeGraphs[this.courseId]?.nodes;
+      return nodes?.length
+        ? nodes.slice(0, 2).map((n) => "如何理解" + n.label + "？")
+        : ["这份资料有哪些核心概念？", "能用一个例子解释吗？"];
+    },
   },
-  mounted() {
-    this.materialId = (this.materials[0] || {}).id || ''
+  watch: {
+    materialId() {
+      this.readDocument();
+    },
+    "$route.query.course"(id) {
+      if (id && id !== this.courseId) {
+        this.courseId = id;
+        this.courseChanged();
+      }
+    },
+  },
+  created() {
+    this.load();
   },
   beforeDestroy() {
-    this.stop()
-    clearTimeout(this.highlightTimer)
+    this.stop();
+    ++this.loadRevision;
+    ++this.docRevision;
+    clearTimeout(this.highlightTimer);
   },
   methods: {
-    courseChanged() {
-      this.stop()
-      this.materialId = (this.materials[0] || {}).id || ''
-      this.messages = []
+    async load() {
+      this.loading = true;
+      this.loadError = "";
+      try {
+        await loadCourses();
+        this.courseId =
+          typeof this.$route.query.course === "string"
+            ? this.$route.query.course
+            : state.courses.find((c) => !c.archived)?.id ||
+              state.courses[0]?.id ||
+              "";
+        await this.courseChanged();
+      } catch (error) {
+        this.loadError = error.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async courseChanged() {
+      this.stop();
+      const revision = ++this.loadRevision;
+      this.loading = true;
+      this.loadError = "";
+      this.historyError = "";
+      this.messages = [];
+      this.document = null;
+      this.materialId = "";
+      this.answerMode = "";
+      try {
+        const course = this.courseId ? await getCourse(this.courseId) : null;
+        if (course && this.remoteCourse) {
+          await loadMaterials(course);
+          try {
+            const history = await loadAssistantHistory(this.courseId);
+            if (revision !== this.loadRevision) return;
+            this.messages = history.flatMap((row) => [
+              {
+                id: row.id + "-q",
+                role: "user",
+                text: row.question,
+                sources: [],
+              },
+              {
+                id: row.id,
+                role: "assistant",
+                text: row.text,
+                sources: row.sources,
+              },
+            ]);
+            this.answerMode = history.at(-1)?.mode || "";
+          } catch (error) {
+            this.historyError = error.message;
+          }
+        }
+        if (revision === this.loadRevision)
+          this.materialId = this.materials[0]?.id || "";
+      } catch (error) {
+        if (revision === this.loadRevision) this.loadError = error.message;
+      } finally {
+        if (revision === this.loadRevision) this.loading = false;
+      }
+    },
+    async readDocument() {
+      const revision = ++this.docRevision;
+      this.document = null;
+      this.docError = "";
+      const item = this.materials.find((m) => m.id === this.materialId);
+      if (!item) {
+        this.docLoading = false;
+        return;
+      }
+      this.docLoading = true;
+      try {
+        const result = await previewMaterial(item);
+        if (revision === this.docRevision && !this._isDestroyed)
+          this.document = { ...result };
+      } catch (error) {
+        if (revision === this.docRevision) this.docError = error.message;
+      } finally {
+        if (revision === this.docRevision) this.docLoading = false;
+      }
     },
     async send(text) {
-      if (!text.trim() || this.busy) return
-      if (!this.searchable.length) {
-        notify('请先导入可检索的 TXT 或 Markdown 资料。')
-        return
+      if (!text.trim() || this.busy || this.loading) return;
+      if (!this.canAsk) {
+        notify("请先导入可解析的课程资料。");
+        return;
       }
-      const question = text.trim()
-      this.question = ''
-      this.messages.push({ id: uid(), role: 'user', text: question, sources: [] })
-      this.tab = 'chat'
-      this.busy = true
-      const generation = ++this.generation
-      this.controller = new AbortController()
+      const question = text.trim();
+      this.question = "";
+      this.tab = "chat";
+      this.messages.push({
+        id: uid(),
+        role: "user",
+        text: question,
+        sources: [],
+      });
+      this.busy = true;
+      const generation = ++this.generation;
+      this.controller = new AbortController();
       try {
-        const answer = await askAssistant({
-          question,
-          materials: this.searchable,
-          signal: this.controller.signal
-        })
-        if (generation !== this.generation) return
-        const message = { id: uid(), role: 'assistant', text: '', sources: [] }
-        this.messages.push(message)
-        let position = 0
-        this.streamTimer = setInterval(() => {
-          if (generation !== this.generation) return
-          position += 7
-          message.text = answer.text.slice(0, position)
-          this.scroll()
-          if (position >= answer.text.length) {
-            clearInterval(this.streamTimer)
-            message.sources = answer.sources
-            this.busy = false
-            this.scroll()
-          }
-        }, 22)
+        const answer = this.remoteCourse
+          ? await askAccountAssistant(
+              { courseId: this.courseId, question },
+              this.controller.signal,
+            )
+          : await askAssistant({
+              question,
+              materials: this.searchable,
+              signal: this.controller.signal,
+            });
+        if (generation !== this.generation) return;
+        this.answerMode = answer.mode || "";
+        this.messages.push({
+          id: answer.id || uid(),
+          role: "assistant",
+          text: answer.text,
+          sources: answer.sources || [],
+        });
+        this.scroll();
       } catch (error) {
-        if (error.name !== 'AbortError') notify('检索失败，请重试。')
-        this.busy = false
+        if (error.name !== "AbortError")
+          notify(error.message || "答疑失败，请重试。");
+      } finally {
+        if (generation === this.generation) this.busy = false;
       }
     },
     stop() {
-      ++this.generation
-      clearInterval(this.streamTimer)
-      if (this.controller) this.controller.abort()
-      if (this.busy)
-        this.messages.push({
-          id: uid(),
-          role: 'assistant',
-          text: '已停止显示本次结果。',
-          sources: []
-        })
-      this.busy = false
+      ++this.generation;
+      if (this.controller) this.controller.abort();
+      this.busy = false;
     },
     scroll() {
       this.$nextTick(() => {
-        if (this.$refs.messages) this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight
-      })
+        if (this.$refs.messages)
+          this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight;
+      });
     },
-    locate(source) {
+    async locate(source) {
       if (!this.materials.some((m) => m.id === source.materialId)) {
-        notify('引用资料已删除，请重新导入。')
-        return
+        notify("引用资料已删除。");
+        return;
       }
-      this.materialId = source.materialId
-      this.tab = 'document'
-      this.highlighted = true
-      clearTimeout(this.highlightTimer)
+      this.materialId = source.materialId;
+      this.tab = "document";
+      this.highlighted = true;
+      clearTimeout(this.highlightTimer);
       this.highlightTimer = setTimeout(() => {
-        this.highlighted = false
-      }, 1800)
-      this.$nextTick(() => {
-        const doc = this.$refs.document
-        if (doc) {
-          const paragraphs = Array.from(doc.querySelectorAll('.paper-paragraph'))
-          const target = paragraphs.find((p) => p.textContent === source.excerpt)
-          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }
-      })
-    }
-  }
-}
+        this.highlighted = false;
+      }, 1800);
+    },
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
@@ -294,7 +489,7 @@ export default {
   color: #152536;
   overflow-y: auto;
   flex: 1;
-  font-family: 'SimSun', 'Songti SC', serif;
+  font-family: "SimSun", "Songti SC", serif;
   border-radius: 3px;
   font-size: 17px;
   transition: box-shadow 0.2s;
@@ -307,7 +502,7 @@ export default {
   }
 
   .document-kicker {
-    font-family: 'Microsoft YaHei', sans-serif;
+    font-family: "Microsoft YaHei", sans-serif;
     font-size: 10px;
     color: #698395;
     display: block;
@@ -333,7 +528,7 @@ export default {
     padding-top: 18px;
     margin-top: 30px;
     font-size: 11px;
-    font-family: 'Microsoft YaHei', sans-serif;
+    font-family: "Microsoft YaHei", sans-serif;
     color: #617b8e;
   }
 
@@ -356,7 +551,7 @@ export default {
   padding: 0;
   overflow: hidden;
 
-  >.panel-heading {
+  > .panel-heading {
     padding: 17px 20px;
     margin: 0;
     border-bottom: 1px solid @border;
@@ -374,7 +569,7 @@ export default {
 .chat-intro {
   margin: 6px 0 30px;
 
-  >.app-icon {
+  > .app-icon {
     color: #3dd6ff;
     margin-bottom: 12px;
   }
@@ -460,7 +655,7 @@ export default {
   padding: 13px 16px 16px;
   border-top: 1px solid @border;
 
-  >p {
+  > p {
     font-size: 10px;
     margin-bottom: 10px;
     display: flex;
@@ -541,7 +736,7 @@ export default {
       display: none;
     }
 
-    >.panel {
+    > .panel {
       height: calc(100dvh - 340px);
       min-height: 420px;
     }

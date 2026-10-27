@@ -6,7 +6,8 @@
         <p>从实际作答出发，找到值得再看一次的知识点。</p>
       </div>
       <button class="button secondary" @click="exportRecords">
-        <AppIcon name="download" :size="18" />导出学习记录
+        <AppIcon name="download" :size="18" />
+        {{state.mode === "account" ? "导出当前报告" : "导出学习记录"}}
       </button>
     </header>
     <div class="filter-bar panel">
@@ -17,7 +18,12 @@
         <option value="30">最近 30 天</option>
       </select>
     </div>
-    <div v-if="!attempts.length" class="panel empty-state">
+    <p v-if="loading" class="panel" role="status">正在读取学习报告…</p>
+    <p v-else-if="loadError" class="error-message" role="alert">
+      {{ loadError }}
+      <button class="text-button" @click="load">重新加载</button>
+    </p>
+    <div v-else-if="!totalCount" class="panel empty-state">
       <AppIcon name="chart" :size="44" />
       <h2>先积累一次真实的练习</h2>
       <p>完成答题后，这里会展示你的正确率、用时和知识点记录。</p>
@@ -28,11 +34,10 @@
         <section>
           <div class="panel report-stats">
             <div>
-              <AppIcon name="file" /><span>答对 / 作答</span
-              ><strong
-                ><AnimatedNumber :value="correct" />
-                <small>/ <AnimatedNumber :value="attempts.length" /></small
-              ></strong>
+              <AppIcon name="file" /><span>答对 / 作答</span>
+              <strong><AnimatedNumber :value="correct" />
+                <small>/ <AnimatedNumber :value="totalCount"/></small>
+              </strong>
             </div>
             <div>
               <AnimatedRing :value="rate" />
@@ -64,8 +69,11 @@
                 class="chart-column"
                 :style="{ '--bar-delay': index * 65 + 'ms' }"
               >
-                <strong>{{ day.count || '' }}</strong>
-                <div :style="{ height: Math.max(2, (day.count / maxCount) * 150) + 'px' }" />
+                <strong>{{ day.count || "" }}</strong>
+                <div
+                  :style="{
+                    height: Math.max(2, (day.count / maxCount) * 150) + 'px',
+                  }"/>
                 <span>{{ day.label }}</span>
               </div>
             </div>
@@ -89,7 +97,7 @@
                     <td>{{ point.rate }}%</td>
                     <td>
                       <router-link to="/app/mistakes" class="text-button">{{
-                        point.rate < 80 ? '继续巩固' : '回顾记录'
+                        point.rate < 80 ? "继续巩固" : "回顾记录"
                       }}</router-link>
                     </td>
                   </tr>
@@ -104,20 +112,27 @@
             <p class="muted">
               {{
                 rate < 80
-                  ? '回看错题对应的定义，再用例子检验理解。'
-                  : '保持节奏，安排一次间隔复习。'
+                  ? "回看错题对应的定义，再用例子检验理解。"
+                  : "保持节奏，安排一次间隔复习。"
               }}
             </p>
-            <router-link to="/app/mistakes" class="button secondary full-width"
-              >回看错题</router-link
-            ><router-link to="/app/plan" class="button primary full-width"
-              >安排复习计划</router-link
-            >
+            <router-link to="/app/mistakes" class="button secondary full-width">
+              回看错题
+            </router-link>
+            <router-link to="/app/plan" class="button primary full-width">
+              安排复习计划
+            </router-link>
           </section>
           <section class="panel tip-card">
             <AppIcon name="info" />
             <h2>记录需要时间</h2>
-            <p>这些数据来自本浏览器的实际作答。少量题目不能代表完整的学习能力。</p>
+            <p>
+              {{
+                state.mode === "account"
+                  ? "这些数据来自账号中保存的后端作答记录。"
+                  : "这些数据来自本浏览器的示例作答。"
+              }}少量题目不能代表完整的学习能力。
+            </p>
           </section>
         </aside>
       </div></template
@@ -125,92 +140,165 @@
   </div>
 </template>
 <script>
-import { state, notify } from '../store'
-import { questions } from '../data/demo'
-import AnimatedRing from '../components/AnimatedRing.vue'
+import { state, notify } from "../store";
+import { questions } from "../data/demo";
+import AnimatedRing from "../components/AnimatedRing.vue";
+import { loadReport } from "../services/questions";
 export default {
-  name: 'Reports',
+  name: "Reports",
   components: { AnimatedRing },
-  data: () => ({ state, range: 'all' }),
+  data: () => ({
+    state,
+    range: "all",
+    summary: null,
+    loading: false,
+    loadError: "",
+    loadRevision: 0,
+  }),
   computed: {
+    totalCount() {
+      return state.mode === "account"
+        ? this.summary?.total || 0
+        : this.attempts.length;
+    },
     attempts() {
       return state.attempts.filter(
         (a) =>
-          this.range === 'all' ||
-          Date.now() - new Date(a.date).getTime() < Number(this.range) * 86400000
-      )
+          this.range === "all" ||
+          Date.now() - new Date(a.date).getTime() <
+            Number(this.range) * 86400000,
+      );
     },
     correct() {
-      return this.attempts.filter((a) => a.correct).length
+      if (state.mode === "account") return this.summary?.correct || 0;
+      return this.attempts.filter((a) => a.correct).length;
     },
     rate() {
-      return this.attempts.length ? Math.round((this.correct / this.attempts.length) * 100) : 0
+      if (state.mode === "account") return this.summary?.rate || 0;
+      return this.attempts.length
+        ? Math.round((this.correct / this.attempts.length) * 100)
+        : 0;
     },
     totalSeconds() {
-      return this.attempts.reduce((sum, a) => sum + a.seconds, 0)
+      if (state.mode === "account") return this.summary?.totalSeconds || 0;
+      return this.attempts.reduce((sum, a) => sum + a.seconds, 0);
     },
     minutes() {
-      return Math.floor(this.totalSeconds / 60)
+      return Math.floor(this.totalSeconds / 60);
     },
     seconds() {
-      return this.totalSeconds % 60
+      return this.totalSeconds % 60;
     },
     points() {
-      return ['特征值', '特征向量'].map((name) => {
-        const ids = questions.filter((q) => q.point === name).map((q) => q.id)
-        const rows = this.attempts.filter((a) => ids.includes(a.questionId))
+      if (state.mode === "account") return this.summary?.points || [];
+      return ["特征值", "特征向量"].map((name) => {
+        const ids = questions.filter((q) => q.point === name).map((q) => q.id);
+        const rows = this.attempts.filter((a) => ids.includes(a.questionId));
         return {
           name,
           count: rows.length,
           rate: rows.length
-            ? Math.round((rows.filter((a) => a.correct).length / rows.length) * 100)
-            : 0
-        }
-      })
+            ? Math.round(
+                (rows.filter((a) => a.correct).length / rows.length) * 100,)
+            : 0,
+        };
+      });
     },
     days() {
+      if (state.mode === "account") return this.summary?.days || [];
       return Array.from({ length: 7 }, (_, i) => {
-        const date = new Date()
-        date.setDate(date.getDate() - 6 + i)
-        const key = date.toLocaleDateString('sv-SE')
+        const date = new Date();
+        date.setDate(date.getDate() - 6 + i);
+        const key = date.toLocaleDateString("sv-SE");
         return {
           key,
-          label: date.getMonth() + 1 + '/' + date.getDate(),
-          count: this.attempts.filter((a) => new Date(a.date).toLocaleDateString('sv-SE') === key)
-            .length
-        }
-      })
+          label: date.getMonth() + 1 + "/" + date.getDate(),
+          count: this.attempts.filter(
+            (a) => new Date(a.date).toLocaleDateString("sv-SE") === key,
+          ).length,
+        };
+      });
     },
     maxCount() {
-      return Math.max(1, ...this.days.map((d) => d.count))
-    }
+      return Math.max(1, ...this.days.map((d) => d.count));
+    },
   },
   methods: {
+    async load() {
+      if (state.mode !== "account") return;
+      const revision = ++this.loadRevision;
+      this.loading = true;
+      this.loadError = "";
+      try {
+        const result = await loadReport(
+          this.range,
+          typeof this.$route.query.course === "string"
+            ? this.$route.query.course
+            : undefined,
+        );
+        if (revision === this.loadRevision) this.summary = result;
+      } catch (error) {
+        if (revision === this.loadRevision) this.loadError = error.message;
+      } finally {
+        if (revision === this.loadRevision) this.loading = false;
+      }
+    },
     exportRecords() {
+      if (
+        state.mode === "account" &&
+        (!this.summary || this.loading || this.loadError)
+      ) {
+        notify("请先成功读取报告后再导出。");
+        return;
+      }
       const blob = new Blob(
         [
           JSON.stringify(
-            { exportedAt: new Date().toISOString(), attempts: state.attempts, tasks: state.tasks },
+            state.mode === "account"
+              ? {
+                  exportedAt: new Date().toISOString(),
+                  courseId: this.$route.query.course || null,
+                  summary: this.summary,
+                }
+              : {
+                  exportedAt: new Date().toISOString(),
+                  attempts: state.attempts,
+                  tasks: state.tasks,
+                },
             null,
-            2
-          )
+            2,
+          ),
         ],
-        { type: 'application/json' }
-      )
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = '知序-学习记录.json'
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      notify('学习记录已导出为 JSON 文件')
-    }
-  }
-}
+        { type: "application/json" },
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        state.mode === "account"
+          ? "知序-学习报告汇总.json"
+          : "知序-学习记录.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify("学习记录已导出为 JSON 文件");
+    },
+  },
+  watch: {
+    range() {
+      this.load();
+    },
+    "$route.query.course"() {
+      this.load();
+    },
+  },
+  created() {
+    this.load();
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
@@ -256,7 +344,12 @@ export default {
   height: 220px;
   border-bottom: 1px solid #29475c;
   padding: 0 10px 8px;
-  background: repeating-linear-gradient(to top, transparent 0, transparent 49px, #173b512e 50px);
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent 49px,
+    #173b512e 50px
+  );
   .chart-column {
     display: flex;
     flex-direction: column;

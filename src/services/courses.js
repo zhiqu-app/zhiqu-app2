@@ -1,4 +1,5 @@
 import { request, getToken } from "./api";
+import Vue from "vue";
 import { state, persist } from "../store";
 
 const pending = new Map();
@@ -165,7 +166,7 @@ export async function previewMaterial(item) {
   const scope = accountScope();
   const detail = await request("/materials/" + encodeURIComponent(item.id));
   assertScope(scope);
-  Object.assign(item, detail);
+  Object.entries(detail).forEach(([key, value]) => Vue.set(item, key, value));
   if (item.type === "PDF") {
     const blob = await request(
       "/materials/" + encodeURIComponent(item.id) + "/file?inline=true",
@@ -173,7 +174,7 @@ export async function previewMaterial(item) {
     );
     assertScope(scope);
     if (item.url) URL.revokeObjectURL(item.url);
-    item.url = URL.createObjectURL(blob);
+    Vue.set(item, "url", URL.createObjectURL(blob));
   }
   return item;
 }

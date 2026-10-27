@@ -1,65 +1,79 @@
-import { api, getToken, clearToken, onUnauthorized } from './api'
-import { state, activateAccount, clearAccount, notify, enterDemo as enterLocalDemo } from '../store'
+import { api, getToken, clearToken, onUnauthorized } from "./api";
+import {
+  state,
+  activateAccount,
+  clearAccount,
+  notify,
+  enterDemo as enterLocalDemo,
+} from "../store";
 
-let restoring = null
+let restoring = null;
 onUnauthorized(() => {
-  if (state.mode === 'account') clearAccount()
-})
+  if (state.mode === "account") clearAccount();
+});
 // 用户注册
 export async function registerAccount(body) {
-  const result = await api.register(body)
-  activateAccount(result.user)
-  return result.user
+  const result = await api.register(body);
+  activateAccount(result.user);
+  return result.user;
 }
 
 export async function loginAccount(email, password) {
-  const result = await api.login({ email: email.trim(), password })
-  activateAccount(result.user)
-  return result.user
+  const result = await api.login({ email: email.trim(), password });
+  activateAccount(result.user);
+  return result.user;
 }
 
 export async function restoreSession() {
   if (!getToken()) {
-    if (state.mode === 'account') clearAccount()
-    return null
+    if (state.mode === "account") clearAccount();
+    return null;
   }
   if (!restoring) {
-    const token = getToken()
+    const token = getToken();
     restoring = api
       .me()
       .then((user) => {
-        if (getToken() !== token) return null
-        activateAccount(user)
-        return user
+        if (getToken() !== token) return null;
+        activateAccount(user);
+        return user;
       })
       .catch((error) => {
-        if (error.status === 401) return null
-        throw error
+        if (error.status === 401) return null;
+        throw error;
       })
       .finally(() => {
-        restoring = null
-      })
+        restoring = null;
+      });
   }
-  return restoring
+  return restoring;
 }
 
 export async function logoutAccount() {
   try {
-    await api.logout()
+    await api.logout();
   } finally {
-    clearAccount()
+    clearAccount();
   }
 }
 
 export async function enterDemo() {
   // 本地体验不要求邮件/数据库服务，不能携带上一个真实账号的令牌。
   try {
-    if (getToken()) await api.logout()
+    if (getToken()) await api.logout();
   } catch (_) {
-    notify('已切换本地体验，服务端会话撤销未确认。')
+    notify("已切换本地体验，服务端会话撤销未确认。");
   } finally {
-    clearToken()
-    clearAccount()
-    enterLocalDemo()
+    clearToken();
+    clearAccount();
+    enterLocalDemo();
   }
+}
+
+// 只有用户主动选择在线示例空间才创建服务端体验账号，本地示例仍独立保留。
+export async function enterOnlineDemo() {
+  if (getToken()) await logoutAccount();
+  const result = await api.onlineDemo();
+  activateAccount(result.user);
+  return result.user;
 }

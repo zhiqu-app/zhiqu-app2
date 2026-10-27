@@ -15,6 +15,14 @@
         >
           <AppIcon :name="course.archived ? 'book' : 'download'" :size="18" />
         </button>
+        <button
+          v-if="deletable"
+          class="icon-button"
+          :aria-label="'删除课程' + course.name"
+          @click="$emit('delete', course)"
+        >
+          <AppIcon name="trash" :size="18" />
+        </button>
       </div>
       <p class="course-chapter">{{ course.chapter }}</p>
       <span v-if="course._remote === false" class="badge amber"
@@ -59,6 +67,7 @@ export default {
     course: { type: Object, required: true },
     materialCount: { type: Number, default: 0 },
     compact: Boolean,
+    deletable: Boolean,
   },
   methods: { asset },
 };

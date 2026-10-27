@@ -65,10 +65,10 @@
           ><i class="dot cyan" />
           {{ state.mode === "account" ? "账号已登录" : "本地演示空间" }}</span
         >
-        <span
-          >{{
+        <span>
+          {{
             state.mode === "account"
-              ? "课程、资料、星图与复习任务已连接账号 · 练习等其余功能沿用原数据模式"
+              ? "课程、资料、题库、星图与问答已连接账号"
               : "数据保存在此浏览器 · AI 使用本地资料检索演示"
           }}
         </span>
@@ -88,14 +88,12 @@
           name="page-view"
           mode="out-in"
           :css="allowMotion"
-          @after-enter="workspaceReady"
-        >
+          @after-enter="workspaceReady">
           <router-view
             :key="$route.path"
             v-page-reveal
             class="route-page"
-            :data-route-path="$route.fullPath"
-          />
+            :data-route-path="$route.fullPath"/>
         </transition>
       </main>
     </div>

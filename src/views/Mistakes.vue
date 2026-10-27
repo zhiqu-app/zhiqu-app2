@@ -9,13 +9,26 @@
         <AppIcon name="edit" :size="18" />开始练习
       </router-link>
     </header>
+    <p v-if="loading" class="panel" role="status">正在读取错题记录…</p>
+    <p v-else-if="loadError" class="error-message" role="alert">
+      {{ loadError }}
+      <button class="text-button" @click="load">重新加载</button>
+    </p>
     <div class="filter-bar panel">
       <div class="tabs">
-        <button :class="{ active: filter === 'all' }" @click="filter = 'all'">全部错题</button>
+        <button :class="{ active: filter === 'all' }" @click="filter = 'all'">
+          全部错题
+        </button>
         <button
-          :class="{ active: filter === 'pending' }" @click="filter = 'pending'">
-          待巩固</button>
-          <button :class="{ active: filter === 'reviewed' }" @click="filter = 'reviewed'">
+          :class="{ active: filter === 'pending' }"
+          @click="filter = 'pending'"
+        >
+          待巩固
+        </button>
+        <button
+          :class="{ active: filter === 'reviewed' }"
+          @click="filter = 'reviewed'"
+        >
           已复习
         </button>
       </div>
@@ -23,17 +36,27 @@
     </div>
     <div class="mistakes-layout">
       <section class="panel mistake-list">
-        <button v-for="q in filtered" :key="q.id" class="mistake-item" :class="{ active: selectedId === q.id }"
-          @click="selectedId = q.id">
+        <button
+          v-for="q in filtered"
+          :key="q.id"
+          class="mistake-item"
+          :class="{ active: selectedId === q.id }"
+          @click="selectedId = q.id"
+        >
           <span class="badge" :class="{ amber: !q.reviewed }">{{
-            q.reviewed ? '已复习' : '待巩固'
-            }}</span>
+            q.reviewed ? "已复习" : "待巩固"
+          }}</span>
           <h3>{{ q.title }}</h3>
-          <span class="muted small">{{ q.point }} · 错误 {{ q.wrongCount }} 次</span>
+          <span class="muted small"
+            >{{ q.point }} · 错误 {{ q.wrongCount }} 次</span
+          >
         </button>
-        <div v-if="!filtered.length" class="empty-state">
+        <div
+          v-if="!loading && !loadError && !filtered.length"
+          class="empty-state"
+        >
           <AppIcon name="check" :size="40" />
-          <h2>{{ mistakes.length ? '没有匹配的错题' : '还没有错题记录' }}</h2>
+          <h2>{{ mistakes.length ? "没有匹配的错题" : "还没有错题记录" }}</h2>
           <p>完成一次练习，记录就会出现在这里。</p>
         </div>
       </section>
@@ -41,9 +64,16 @@
         <span class="badge amber">{{ selected.point }}</span>
         <h2>{{ selected.title }}</h2>
         <div class="answer-options">
-          <div v-for="(option, i) in selected.options" :key="i" class="answer-option"
-            :class="{ correct: i === selected.answer, wrong: i === selected.lastWrong.choice }">
-            <span class="option-letter">{{ 'ABCD'[i] }}</span>
+          <div
+            v-for="(option, i) in selected.options"
+            :key="i"
+            class="answer-option"
+            :class="{
+              correct: i === selected.answer,
+              wrong: i === selected.lastWrong.choice,
+            }"
+          >
+            <span class="option-letter">{{ "ABCDEF"[i] }}</span>
             {{ option }}
             <AppIcon v-if="i === selected.answer" name="check" :size="16" />
           </div>
@@ -64,71 +94,133 @@
   </div>
 </template>
 <script>
-import { questions } from '../data/demo'
-import { state, persist, uid, notify } from '../store'
+import { questions } from "../data/demo";
+import { state, persist, uid, notify } from "../store";
+import { loadMistakes, planMistake } from "../services/questions";
 export default {
-  name: 'Mistakes',
-  data: () => ({ state, filter: 'all', selectedId: '' }),
+  name: "Mistakes",
+  data: () => ({
+    state,
+    filter: "all",
+    selectedId: "",
+    remoteMistakes: [],
+    loading: false,
+    loadError: "",
+  }),
   computed: {
     mistakes() {
+      if (state.mode === "account") return this.remoteMistakes;
       return questions
         .map((q) => {
-          const all = state.attempts.filter((a) => a.questionId === q.id)
-          const wrong = all.filter((a) => !a.correct)
+          const all = state.attempts.filter((a) => a.questionId === q.id);
+          const wrong = all.filter((a) => !a.correct);
           return wrong.length
             ? {
-              ...q,
-              reviewed: all[all.length - 1].correct,
-              wrongCount: wrong.length,
-              lastWrong: wrong[wrong.length - 1]
-            }
-            : null
+                ...q,
+                reviewed: all[all.length - 1].correct,
+                wrongCount: wrong.length,
+                lastWrong: wrong[wrong.length - 1],
+              }
+            : null;
         })
-        .filter(Boolean)
+        .filter(Boolean);
     },
     filtered() {
       return this.mistakes.filter(
-        (q) => this.filter === 'all' || q.reviewed === (this.filter === 'reviewed')
-      )
+        (q) =>
+          this.filter === "all" || q.reviewed === (this.filter === "reviewed"),
+      );
     },
     selected() {
-      return this.filtered.find((q) => q.id === this.selectedId) || this.filtered[0]
-    }
+      return (
+        this.filtered.find((q) => q.id === this.selectedId) || this.filtered[0]
+      );
+    },
   },
   methods: {
-    addPlan(q) {
-      const title = '巩固：' + q.point + '（' + q.id + '）'
+    async load() {
+      if (state.mode !== "account") return;
+      this.loading = true;
+      this.loadError = "";
+      try {
+        this.remoteMistakes = await loadMistakes(
+          typeof this.$route.query.course === "string"
+            ? this.$route.query.course
+            : undefined,
+        );
+      } catch (error) {
+        this.loadError = error.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async addPlan(q) {
+      if (state.mode === "account") {
+        try {
+          const result = await planMistake(q.id);
+          notify(result.created ? "已加入复习计划" : "这道题已在复习计划中");
+        } catch (error) {
+          notify(error.message);
+        }
+        return;
+      }
+      const title = "巩固：" + q.point + "（" + q.id + "）";
       if (state.tasks.some((t) => t.title === title && !t.done)) {
-        notify('这道题已经在待复习计划中了。')
-        return
+        notify("这道题已经在待复习计划中了。");
+        return;
       }
       state.tasks.push({
         id: uid(),
         title,
         description: q.title,
         minutes: 10,
-        date: '',
+        date: "",
         done: false,
-        target: '/app/practice?question=' + q.id
-      })
-      persist()
-      notify('已加入复习计划')
+        target: "/app/practice?question=" + q.id,
+      });
+      persist();
+      notify("已加入复习计划");
     },
     retry(q) {
-      let draft = {}
+      if (state.mode === "account") {
+        const key =
+          "zhixu-practice-draft:account:" + state.account.id + ":" + q.courseId;
+        let draft = {};
+        try {
+          draft = JSON.parse(sessionStorage.getItem(key)) || {};
+        } catch (_) {}
+        if (draft.answers) delete draft.answers[q.id];
+        if (draft.pendingSubmission?.questionId === q.id)
+          draft.pendingSubmission = null;
+        sessionStorage.setItem(key, JSON.stringify(draft));
+        this.$router.push({
+          path: "/app/practice",
+          query: { course: q.courseId, question: q.id },
+        });
+        return;
+      }
+      let draft = {};
+      const demoCourse = q.courseId || state.courses[0]?.id || "linear";
+      const demoKey = "zhixu-practice-draft:demo:demo:" + demoCourse;
       try {
-        draft = JSON.parse(sessionStorage.getItem('zhixu-practice-draft')) || {}
-      } catch (_) { }
-      if (draft.answers) delete draft.answers[q.id]
-      sessionStorage.setItem('zhixu-practice-draft', JSON.stringify(draft))
-      this.$router.push('/app/practice?question=' + q.id)
-    }
-  }
-}
+        draft = JSON.parse(sessionStorage.getItem(demoKey)) || {};
+      } catch (_) {}
+      if (draft.answers) delete draft.answers[q.id];
+      sessionStorage.setItem(demoKey, JSON.stringify(draft));
+      this.$router.push({
+        path: "/app/practice",
+        query: { course: demoCourse, question: q.id },
+      });
+    },
+  },
+  created() {
+    this.load();
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
@@ -169,11 +261,11 @@ export default {
     margin: 18px 0 25px;
   }
 
-  >h3 {
+  > h3 {
     margin: 25px 0 10px;
   }
 
-  >p {
+  > p {
     color: #b1cfe7;
   }
 

@@ -10,6 +10,12 @@
       </div>
       <div class="button-row">
         <router-link
+          v-if="course._remote && state.mode === 'account'"
+          :to="'/app/courses/' + course.id + '/questions'"
+          class="button secondary"
+          >配置题库</router-link
+        >
+        <router-link
           v-if="state.mode === 'account' && course._remote"
           :to="'/app/courses/' + course.id + '/knowledge/edit'"
           class="button secondary"
@@ -56,6 +62,10 @@
             >
           </div>
         </div>
+        <CourseGraphQuickPanel
+          v-if="course._remote && state.mode === 'account'"
+          :course="course"
+        />
         <div class="panel materials-panel">
           <div class="panel-heading">
             <h2>
@@ -95,7 +105,10 @@
               <strong>{{ m.name }}</strong
               ><small
                 >{{ m.size }} · {{ m.created
-                }}{{ m.temporary ? " · 关闭网页后需重新导入" : "" }}{{ state.mode === 'account' && !m._remote ? ' · 仅在本机' : '' }}</small
+                }}{{ m.temporary ? " · 关闭网页后需重新导入" : ""
+                }}{{
+                  state.mode === "account" && !m._remote ? " · 仅在本机" : ""
+                }}</small
               ></button
             ><span class="badge">{{
               m.type === "PDF" ? "可预览" : "可检索"
@@ -191,6 +204,7 @@
 </template>
 <script>
 import AppModal from "../components/AppModal.vue";
+import CourseGraphQuickPanel from "../components/CourseGraphQuickPanel.vue";
 import { state, persist, uid, notify } from "../store";
 import { asset } from "../utils/assets";
 import {
@@ -203,7 +217,7 @@ import {
 } from "../services/courses";
 export default {
   name: "CourseDetail",
-  components: { AppModal },
+  components: { AppModal, CourseGraphQuickPanel },
   data: () => ({
     state,
     search: "",

@@ -3,210 +3,373 @@
     <header class="page-heading">
       <div>
         <h1>个人与设置</h1>
-        <p>管理个人资料与学习偏好，让这里适合你的学习节奏。</p>
+        <p>管理个人资料、账号学习数据与连接状态。</p>
       </div>
-      <button class="button secondary" @click="logout">
-        <AppIcon name="logout" :size="18" />{{ state.mode === 'account' ? '退出登录' : '退出体验' }}
+      <button class="button secondary" :disabled="busy" @click="logout">
+        {{ state.mode === "account" ? "退出登录" : "退出体验" }}
       </button>
     </header>
     <div class="tabs settings-tabs">
-      <button class="active">基本资料</button><router-link to="/app/reports">学习记录</router-link>
-      <router-link to="/app/plan">复习计划</router-link>
+      <button class="active">基本资料</button
+      ><router-link to="/app/reports">学习报告</router-link
+      ><router-link to="/app/history">作答历史</router-link
+      ><router-link to="/app/plan">复习计划</router-link>
     </div>
+    <p v-if="profileError" class="error-message" role="alert">
+      {{ profileError }}
+      <button class="text-button" @click="readProfile">重新读取资料</button>
+    </p>
     <div class="settings-grid">
       <section class="panel">
         <h2>基本资料</h2>
-        <form @submit.prevent="save">
+        <p v-if="profileLoading" role="status">正在读取账号资料…</p>
+        <form v-else @submit.prevent="save">
           <div class="profile-editor">
             <UserAvatar :name="form.name" :size="76" />
             <p class="small muted">知序默认头像</p>
           </div>
-          <label class="field-label" for="user-name">昵称</label>
-          <input
+          <label class="field-label" for="user-name">昵称</label
+          ><input
             id="user-name"
             v-model.trim="form.name"
             class="input"
             required
-            maxlength="20"/>
-          <label class="field-label" for="user-major">专业</label>
-          <input id="user-major" v-model.trim="form.major" class="input" maxlength="30" /><label
-            class="field-label"
-            for="user-grade"
-            >年级</label>
-          <select id="user-grade" v-model="form.grade" class="input">
-            <option v-for="g in grades" :key="g">{{ g }}</option></select>
-          <label class="field-label" for="user-email">联系邮箱（选填）</label>
-          <input
+            maxlength="30"
+            :disabled="busy"
+          /><label class="field-label" for="user-major">专业</label
+          ><input
+            id="user-major"
+            v-model.trim="form.major"
+            class="input"
+            maxlength="30"
+            :disabled="busy"
+          /><label class="field-label" for="user-grade">年级</label
+          ><select
+            id="user-grade"
+            v-model="form.grade"
+            class="input"
+            :disabled="busy"
+          >
+            <option v-for="grade in grades" :key="grade">
+              {{ grade }}
+            </option></select
+          ><label class="field-label" for="user-email">联系邮箱（选填）</label
+          ><input
             id="user-email"
             v-model.trim="form.email"
             class="input"
             type="email"
             maxlength="100"
-          /><button class="button primary full-width settings-save" :disabled="!form.name">
+            :disabled="busy"
+          /><button
+            class="button primary full-width settings-save"
+            :disabled="busy || !form.name"
+          >
             保存资料
           </button>
         </form>
       </section>
       <section class="panel">
         <h2>学习偏好</h2>
-        <label class="preference-row">
-          <AppIcon name="spark" />
-          <span><strong>减少动态效果</strong><small>关闭浮动插画与转场运动</small></span>
-          <input
+        <label class="preference-row"
+          ><AppIcon name="spark" /><span
+            ><strong>减少动态效果</strong
+            ><small>关闭浮动插画与转场运动</small></span
+          ><input
             v-model="form.reducedMotion"
-            type="checkbox"
             class="switch"
-            @change="savePreference" />
-          </label>
-        <label class="preference-row">
-          <AppIcon name="bell" />
-          <span>
-            <strong>显示学习提醒</strong><small>仅控制应用内提醒，不推送系统通知</small>
-          </span>
-          <input v-model="form.reminders" type="checkbox" class="switch" @change="savePreference"/>
-        </label>
+            type="checkbox"
+            :disabled="busy || profileLoading"
+            @change="savePreference" /></label
+        ><label class="preference-row"
+          ><AppIcon name="bell" /><span
+            ><strong>显示学习提醒</strong><small>仅控制应用内提醒</small></span
+          ><input
+            v-model="form.reminders"
+            class="switch"
+            type="checkbox"
+            :disabled="busy || profileLoading"
+            @change="savePreference"
+        /></label>
         <div class="settings-note">
           <AppIcon name="info" />
           <div>
-            <h3>关于当前演示空间</h3>
+            <h3>
+              {{ state.mode === "account" ? "账号学习空间" : "本地演示空间" }}
+            </h3>
             <p>
-              这是可独立运行的 Vue 2 前端。课程、文本、练习与计划保存在当前浏览器。AI
-              答疑为本地检索演示；账号和个人资料已支持后端验证，学习业务尚未云端同步。
+              {{
+                state.mode === "account"
+                  ? "课程、PDF 原文件、题库、作答与问答保存在账号中，重新登录后可以读取。"
+                  : "演示数据仅保留在当前浏览器，不能作为账号资料。"
+              }}
             </p>
-            <p>
-              PDF 使用临时文件地址预览，刷新后需要重新导入。请勿把本地浏览器当作唯一的资料备份。
-            </p>
+            <p>示例题库文件只在前端供下载或预览，不会自动导入你的课程。</p>
           </div>
         </div>
-        <router-link to="/app/knowledge" class="action-row">
-          <AppIcon name="graph" />知识路线<AppIcon name="chevron" :size="18" />
-        </router-link>
-        <router-link to="/app/reports" class="action-row">
-          <AppIcon name="chart" />学习报告<AppIcon name="chevron" :size="18"/>
-        </router-link>
+        <div class="preference-row">
+          <span
+            ><strong>{{
+              healthStatus === "ok"
+                ? "服务已连接"
+                : healthStatus === "checking"
+                  ? "正在检查连接"
+                  : "服务连接失败"
+            }}</strong
+            ><small>{{
+              healthError || "检查后端服务与数据库是否可用"
+            }}</small></span
+          ><button class="text-button" @click="checkHealth">检查连接</button>
+        </div>
       </section>
     </div>
     <section class="panel data-settings">
       <h2>数据管理</h2>
       <div class="preference-row">
-        <AppIcon name="download" />
-        <span>
-          <strong>导出学习数据</strong>
-          <small>课程、文字资料、练习记录与计划，JSON 格式</small>
-        </span>
-        <button class="button secondary small-button" @click="exportData">导出数据</button>
+        <AppIcon name="download" /><span
+          ><strong>导出学习数据</strong
+          ><small>{{
+            state.mode === "account"
+              ? "导出账号课程、资料文字、作答、计划和问答；不包含 PDF 原文件、题库和星图"
+              : "导出本机演示记录"
+          }}</small></span
+        ><button
+          class="button secondary small-button"
+          :disabled="busy"
+          @click="exportData"
+        >
+          导出数据
+        </button>
       </div>
       <div class="preference-row">
-        <AppIcon name="trash" /><span>
-          <strong>重置本地学习数据</strong>
-          <small>{{
-            state.mode === 'account'
-              ? '清空当前账号的本机学习记录；保留账号和个人资料'
-              : '删除本地课程与作答，恢复内置示例；保留个人资料'
-          }}</small></span>
-        <button class="button danger small-button" @click="confirmReset = true">重置数据</button>
+        <AppIcon name="trash" /><span
+          ><strong>{{
+            state.mode === "account" ? "清空账号学习数据" : "重置本地学习数据"
+          }}</strong
+          ><small>{{
+            state.mode === "account"
+              ? "删除账号中的课程及其 PDF、题库、作答、星图、问答和计划；保留登录账号与个人资料"
+              : "恢复本地示例，不影响真实账号数据"
+          }}</small></span
+        ><button
+          class="button danger small-button"
+          :disabled="busy"
+          @click="
+            confirmReset = true;
+            confirmWord = '';
+            resetError = '';
+          "
+        >
+          {{ state.mode === "account" ? "清空账号数据" : "重置数据" }}
+        </button>
       </div>
     </section>
-    <AppModal v-if="confirmReset" title="重置本地学习数据？" @close="confirmReset = false">
-      <p>
-        当前课程、文字资料、练习和复习计划会被删除，并{{
-          state.mode === 'account' ? '清空本机学习记录' : '恢复示例数据'
-        }}。建议先导出备份。
+    <AppModal
+      v-if="confirmReset"
+      :title="
+        state.mode === 'account' ? '清空账号学习数据？' : '重置本机演示？'
+      "
+      @close="closeReset"
+      ><p>
+        {{
+          state.mode === "account"
+            ? "这会删除账号中全部学习数据，包括已保存的 PDF 原文件。登录账号和个人资料会保留。"
+            : "这会恢复本机示例数据。"
+        }}
+      </p>
+      <label
+        v-if="state.mode === 'account'"
+        class="field-label"
+        for="reset-confirm"
+        >输入“清空”确认</label
+      ><input
+        v-if="state.mode === 'account'"
+        id="reset-confirm"
+        v-model="confirmWord"
+        class="input"
+        autocomplete="off"
+        :disabled="busy"
+      />
+      <p v-if="resetError" class="error-message" role="alert">
+        {{ resetError }}
       </p>
       <div class="modal-actions">
-        <button class="button secondary" @click="confirmReset = false">取消</button>
-        <button class="button danger" @click="reset">确认重置</button>
-      </div>
-      </AppModal>
+        <button class="button secondary" :disabled="busy" @click="closeReset">
+          取消</button
+        ><button
+          class="button danger"
+          :disabled="
+            busy || (state.mode === 'account' && confirmWord !== '清空')
+          "
+          @click="reset"
+        >
+          {{ busy ? "正在处理…" : "确认清空" }}
+        </button>
+      </div></AppModal
+    >
   </div>
 </template>
 <script>
-import UserAvatar from '../components/UserAvatar.vue'
-import AppModal from '../components/AppModal.vue'
-import { state, persist, notify, resetData } from '../store'
-import { logoutAccount } from '../services/auth'
-import { api } from '../services/api'
+import UserAvatar from "../components/UserAvatar.vue";
+import AppModal from "../components/AppModal.vue";
+import { state, persist, notify, resetData } from "../store";
+import { logoutAccount } from "../services/auth";
+import { api } from "../services/api";
+import {
+  getProfile,
+  getHealth,
+  exportAccountData,
+  resetAccountData,
+  downloadJson,
+} from "../services/platform";
 export default {
-  name: 'Settings',
+  name: "Settings",
   components: { UserAvatar, AppModal },
   data: () => ({
     state,
     form: { ...state.settings },
+    grades: ["大一", "大二", "大三", "大四", "研究生", "其他"],
+    busy: false,
+    profileLoading: false,
+    profileError: "",
+    healthStatus: "checking",
+    healthError: "",
     confirmReset: false,
-    grades: ['大一', '大二', '大三', '大四', '研究生', '其他']
+    confirmWord: "",
+    resetError: "",
   }),
+  created() {
+    this.readProfile();
+    this.checkHealth();
+  },
   methods: {
-    async save() {
-      if (!this.form.name) return
+    async readProfile() {
+      if (state.mode !== "account") return;
+      this.profileLoading = true;
+      this.profileError = "";
       try {
-        const profile = state.mode === 'account' ? await api.saveProfile(this.form) : this.form
-        Object.assign(state.settings, profile)
-        if (state.account) state.account.profile = { ...profile }
-        if (persist()) notify('个人资料已保存')
+        const profile = await getProfile();
+        this.form = { ...profile };
+        Object.assign(state.settings, profile);
+        if (state.account) state.account.profile = { ...profile };
+        persist();
       } catch (error) {
-        notify(error.message)
+        this.profileError = error.message;
+      } finally {
+        this.profileLoading = false;
+      }
+    },
+    async checkHealth() {
+      this.healthStatus = "checking";
+      this.healthError = "";
+      try {
+        const result = await getHealth();
+        this.healthStatus = result.status === "ok" ? "ok" : "error";
+      } catch (error) {
+        this.healthStatus = "error";
+        this.healthError = error.message;
+      }
+    },
+    async save() {
+      if (this.busy || !this.form.name) return;
+      this.busy = true;
+      try {
+        const profile =
+          state.mode === "account"
+            ? await api.saveProfile(this.form)
+            : this.form;
+        Object.assign(state.settings, profile);
+        if (state.account) state.account.profile = { ...profile };
+        persist();
+        notify("个人资料已保存");
+      } catch (error) {
+        notify(error.message);
+      } finally {
+        this.busy = false;
       }
     },
     async savePreference() {
+      const values = {
+        reducedMotion: this.form.reducedMotion,
+        reminders: this.form.reminders,
+      };
       try {
-        const values = { reducedMotion: this.form.reducedMotion, reminders: this.form.reminders }
-        if (state.mode === 'account') await api.saveProfile(values)
-        Object.assign(state.settings, values)
-        persist()
+        if (state.mode === "account") await api.saveProfile(values);
+        Object.assign(state.settings, values);
+        persist();
       } catch (error) {
-        this.form.reducedMotion = state.settings.reducedMotion
-        this.form.reminders = state.settings.reminders
-        notify(error.message)
+        this.form.reducedMotion = state.settings.reducedMotion;
+        this.form.reminders = state.settings.reminders;
+        notify(error.message);
       }
     },
     async logout() {
       try {
-        await logoutAccount()
-      } catch (_) {
-        notify('已清除本机登录状态，服务端会话撤销未确认。')
+        await logoutAccount();
+      } catch (error) {
+        notify(error.message);
       } finally {
-        this.$router.replace('/login')
+        this.$router.replace("/login");
       }
     },
-    reset() {
-      resetData()
-      sessionStorage.removeItem('zhixu-practice-draft')
-      this.confirmReset = false
-      notify(state.mode === 'account' ? '已清空当前账号的本机学习记录' : '已恢复内置示例数据')
+    async exportData() {
+      if (this.busy) return;
+      this.busy = true;
+      try {
+        const value =
+          state.mode === "account"
+            ? await exportAccountData()
+            : {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                courses: state.courses,
+                materials: state.materials
+                  .filter((m) => !m.temporary)
+                  .map(({ url, ...m }) => m),
+                tasks: state.tasks,
+                attempts: state.attempts,
+                settings: state.settings,
+              };
+        downloadJson(
+          value,
+          state.mode === "account"
+            ? "知序-账号学习记录.json"
+            : "知序-本机演示记录.json",
+        );
+        notify("学习记录已导出");
+      } catch (error) {
+        notify(error.message);
+      } finally {
+        this.busy = false;
+      }
     },
-    exportData() {
-      const blob = new Blob(
-        [
-          JSON.stringify(
-            {
-              version: 1,
-              exportedAt: new Date().toISOString(),
-              courses: state.courses,
-              materials: state.materials.filter((m) => !m.temporary),
-              tasks: state.tasks,
-              attempts: state.attempts,
-              settings: state.settings
-            },
-            null,
-            2
-          )
-        ],
-        { type: 'application/json' }
-      )
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = '知序-本地数据备份.json'
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      notify('数据备份已导出')
-    }
-  }
-}
+    closeReset() {
+      if (!this.busy) this.confirmReset = false;
+    },
+    async reset() {
+      if (this.busy) return;
+      if (state.mode === "account" && this.confirmWord !== "清空") return;
+      this.busy = true;
+      this.resetError = "";
+      try {
+        if (state.mode === "account") await resetAccountData();
+        resetData();
+        this.confirmReset = false;
+        notify(
+          state.mode === "account" ? "账号学习数据已清空" : "本机示例已恢复",
+        );
+      } catch (error) {
+        this.resetError = error.message;
+      } finally {
+        this.busy = false;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import '../styles/tokens.less';
+@import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
@@ -268,7 +431,7 @@ export default {
   cursor: pointer;
   flex: none;
   &::before {
-    content: '';
+    content: "";
     width: 16px;
     height: 16px;
     border-radius: 50%;

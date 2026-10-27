@@ -123,6 +123,24 @@ export function saveAttempt(questionId, choice, seconds) {
   persist();
 }
 export function resetData() {
+  state.knowledgeGraph = null;
+  state.knowledgeGraphs = {};
+  state.knowledgeCourseId = "";
+  state.knowledgeStatus = "idle";
+  state.knowledgeError = "";
+  state.coursesLoaded = false;
+  state.tasksLoaded = false;
+  const prefix =
+    "zhixu-practice-draft:" +
+    state.mode +
+    ":" +
+    (state.account?.id || "demo") +
+    ":";
+  try {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith(prefix))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch (_) {}
   state.courses =
     state.mode === "account" ? [] : initialCourses.map((c) => ({ ...c }));
   state.materials.forEach((m) => {
@@ -136,7 +154,7 @@ export function resetData() {
   persist();
 }
 
-// 真实账号只隔离本机业务缓存；课程等业务接口尚需逐页接入。
+// 按账号隔离前端缓存；正式业务数据以各模块读取的后端响应为准。
 function switchSpace(key, empty, profile = {}) {
   state.knowledgeGraph = null;
   state.knowledgeGraphs = {};
