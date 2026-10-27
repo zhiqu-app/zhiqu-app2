@@ -4,7 +4,7 @@
     :data-phase="phase"
     :class="{ 'motion-static': motionReduced }"
   >
-    <svg viewBox="0 0 760 300" role="img" :aria-label="title">
+    <svg viewBox="0 0 760 300" role="group" :aria-label="title">
       <defs>
         <filter :id="glowId" x="-100%" y="-100%" width="300%" height="300%">
           <feGaussianBlur stdDeviation="4" />
@@ -145,6 +145,7 @@ export default {
     selected: { type: String, default: undefined },
     nodes: { type: Array, default: () => [] },
     edges: { type: Array, default: () => [] },
+    playback: { type: Boolean, default: true },
   },
   data: () => ({
     localSelected: "",
@@ -164,6 +165,7 @@ export default {
     },
     canPlay() {
       return (
+        this.playback &&
         this.inViewport &&
         !this.pageHidden &&
         !navigation.overlayVisible &&

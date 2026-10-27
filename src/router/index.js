@@ -5,7 +5,6 @@ import { restoreSession } from "../services/auth";
 import { getToken } from "../services/api";
 import Landing from "../views/Landing.vue";
 import Workspace from "../layouts/Workspace.vue";
-import Splash from "../views/Splash.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import {
@@ -18,10 +17,19 @@ import {
 Vue.use(Router);
 const router = new Router({
   mode: "hash",
-  scrollBehavior: () => ({ x: 0, y: 0 }),
+  scrollBehavior: (to, from) =>
+    to.meta.product && from.meta.product ? false : { x: 0, y: 0 },
   routes: [
-    { path: "/", component: Splash },
-    { path: "/welcome", component: Landing },
+    {
+      path: "/",
+      component: Landing,
+      meta: { product: true, title: "开启学习空间" },
+    },
+    {
+      path: "/welcome",
+      component: Landing,
+      meta: { product: true, title: "产品首页" },
+    },
     { path: "/login", component: Login, meta: { title: "登录" } },
     { path: "/register", component: Register, meta: { title: "邮箱注册" } },
     {

@@ -29,8 +29,9 @@
             saveError = '';
           "
         >
-          快速添加知识点</button
-        ><button
+          快速添加知识点
+        </button>
+        <button
           class="button secondary"
           :disabled="!graph || graph.nodes.length < 2"
           @click="
@@ -42,18 +43,19 @@
         </button>
       </div>
     </section>
-    <AppModal v-if="nodeOpen" title="快速添加知识点" @close="close"
-      ><form @submit.prevent="saveNode">
-        <label class="field-label" for="quick-node-label">知识点名称</label
-        ><input
+    <AppModal v-if="nodeOpen" title="快速添加知识点" @close="close">
+      <form @submit.prevent="saveNode">
+        <label class="field-label" for="quick-node-label">知识点名称</label>
+        <input
           id="quick-node-label"
           v-model.trim="node.label"
           class="input"
           required
           maxlength="80"
-        /><label class="field-label" for="quick-node-description"
-          >知识点说明</label
-        ><textarea
+        />
+        <label class="field-label" for="quick-node-description"
+          >知识点说明</label>
+        <textarea
           id="quick-node-description"
           v-model="node.description"
           class="input"
@@ -67,12 +69,12 @@
           {{ saveError }}
         </p>
         <button class="button primary" :disabled="saving">保存知识点</button>
-      </form></AppModal
-    >
-    <AppModal v-if="edgeOpen" title="连接课程知识点" @close="close"
-      ><form @submit.prevent="saveEdge">
-        <label class="field-label" for="quick-edge-source">先学习</label
-        ><select
+      </form>
+    </AppModal>
+    <AppModal v-if="edgeOpen" title="连接课程知识点" @close="close">
+      <form @submit.prevent="saveEdge">
+        <label class="field-label" for="quick-edge-source">先学习</label>
+        <select
           id="quick-edge-source"
           v-model="edge.source"
           class="input"
@@ -81,9 +83,10 @@
           <option value="">选择知识点</option>
           <option v-for="n in graph.nodes" :key="n.id" :value="n.id">
             {{ n.label }}
-          </option></select
-        ><label class="field-label" for="quick-edge-target">再学习</label
-        ><select
+          </option>
+        </select>
+        <label class="field-label" for="quick-edge-target">再学习</label>
+        <select
           id="quick-edge-target"
           v-model="edge.target"
           class="input"
@@ -98,8 +101,8 @@
           {{ saveError }}
         </p>
         <button class="button primary" :disabled="saving">保存连接</button>
-      </form></AppModal
-    >
+      </form>
+    </AppModal>
   </div>
 </template>
 <script>

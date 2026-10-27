@@ -1,6 +1,11 @@
 <template>
   <div id="zhixu" :class="{ 'reduce-motion': state.settings.reducedMotion }">
-    <transition name="public-page" mode="out-in" :css="allowMotion" @after-enter="publicReady">
+    <transition
+      name="public-page"
+      mode="out-in"
+      :css="allowMotion"
+      @after-enter="publicReady"
+    >
       <router-view
         :key="viewKey"
         :data-route-path="$route.fullPath"
@@ -16,45 +21,46 @@
   </div>
 </template>
 <script>
-import { state } from './store'
-import NavigationFeedback from './components/NavigationFeedback.vue'
-import { motionAllowed, finishReveals } from './utils/motion'
-import { navigation, revealPage } from './utils/navigation'
+import { state } from "./store";
+import NavigationFeedback from "./components/NavigationFeedback.vue";
+import { motionAllowed, finishReveals } from "./utils/motion";
+import { navigation, revealPage } from "./utils/navigation";
 export default {
-  name: 'App',
+  name: "App",
   components: { NavigationFeedback },
   data: () => ({ state }),
   computed: {
     blockPublic() {
       return (
-        navigation.overlayScope === 'full' &&
+        navigation.overlayScope === "full" &&
         (navigation.overlayVisible || navigation.overlayLeaving)
-      )
+      );
     },
     allowMotion() {
-      return motionAllowed()
+      return motionAllowed();
     },
     viewKey() {
+      if (this.$route.meta.product) return "product-experience";
       return this.$route.matched.some((route) => route.meta.workspace)
-        ? 'workspace'
-        : this.$route.path
-    }
+        ? "workspace"
+        : this.$route.path;
+    },
   },
   watch: {
     allowMotion(allowed) {
-      if (!allowed) finishReveals()
-    }
+      if (!allowed) finishReveals();
+    },
   },
   methods: {
     publicReady(element) {
-      revealPage(element.dataset.routePath, 'public')
-    }
-  }
-}
+      revealPage(element.dataset.routePath, "public");
+    },
+  },
+};
 </script>
 
 <style lang="less" scoped>
-@import './styles/tokens.less';
+@import "./styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 
