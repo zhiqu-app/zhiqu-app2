@@ -1,8 +1,6 @@
 import Vue from "vue";
 import Router from "vue-router";
-import { state } from "../store";
 import { restoreSession } from "../services/auth";
-import { getToken } from "../services/api";
 import Landing from "../views/Landing.vue";
 import Workspace from "../layouts/Workspace.vue";
 import Login from "../views/Login.vue";
@@ -132,17 +130,15 @@ router.beforeEach(async (to, from, next) => {
   beginNavigation(to, from);
   const workspace = to.matched.some((record) => record.meta.workspace);
   if (workspace) {
-    if (getToken() || state.mode !== "demo") {
-      try {
-        const user = await restoreSession();
-        if (!user)
-          return next({ path: "/login", query: { redirect: to.fullPath } });
-      } catch (_) {
-        return next({
-          path: "/login",
-          query: { redirect: to.fullPath, reason: "connection" },
-        });
-      }
+    try {
+      const user = await restoreSession();
+      if (!user)
+        return next({ path: "/login", query: { redirect: to.fullPath } });
+    } catch (_) {
+      return next({
+        path: "/login",
+        query: { redirect: to.fullPath, reason: "connection" },
+      });
     }
   }
   next();

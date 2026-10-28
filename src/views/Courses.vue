@@ -264,20 +264,14 @@ export default {
       return (state.courses.find((c) => c.id === id) || {}).name || "";
     },
     async toggleArchive(course) {
-      if (state.mode === "account" && course._remote) {
-        try {
-          await archiveCourse(course, !course.archived);
-        } catch (error) {
-          notify(error.message);
-          return;
-        }
-      } else {
-        course.archived = !course.archived;
-        persist();
+      try {
+        await archiveCourse(course, !course.archived);
+        notify(
+          course.archived ? "课程已归档，可在已归档中恢复。" : "课程已恢复。",
+        );
+      } catch (error) {
+        notify(error.message);
       }
-      notify(
-        course.archived ? "课程已归档，可在已归档中恢复。" : "课程已恢复。",
-      );
     },
     importCourse() {
       const course = state.courses.find((c) => !c.archived);
@@ -287,37 +281,17 @@ export default {
     async create() {
       if (!this.form.name || this.busy) return;
       this.createError = "";
-      if (state.mode === "account") {
-        this.busy = true;
-        try {
-          const course = await createCourse(this.form);
-          this.showCreate = false;
-          notify("课程已创建，可以导入资料或配置知识星图。");
-          await this.$router.push("/app/courses/" + course.id);
-        } catch (error) {
-          this.createError = error.message;
-        } finally {
-          this.busy = false;
-        }
-        return;
+      this.busy = true;
+      try {
+        const course = await createCourse(this.form);
+        this.showCreate = false;
+        notify("课程已创建，可以导入资料或配置知识星图。");
+        await this.$router.push("/app/courses/" + course.id);
+      } catch (error) {
+        this.createError = error.message;
+      } finally {
+        this.busy = false;
       }
-      const id = uid();
-      state.courses.push({
-        id,
-        name: this.form.name,
-        teacher: this.form.teacher || "未设置",
-        description:
-          this.form.description || "从第一份课程资料开始，建立你的学习路径。",
-        chapter: "开始整理你的课程知识",
-        progress: 0,
-        lessons: 0,
-        cover: "structures",
-        archived: false,
-      });
-      persist();
-      this.showCreate = false;
-      notify("课程已创建");
-      this.$router.push("/app/courses/" + id);
     },
   },
   created() {

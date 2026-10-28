@@ -36,7 +36,7 @@
         </p>
         <div class="hero-actions">
           <button class="product-primary" :disabled="busy" @click="experience">
-            {{ busy ? "正在进入…" : "体验示例课程"
+            {{ busy ? "正在进入…" : "进入学习空间"
             }}<AppIcon name="arrow" :size="18" /></button
           ><a href="#workflow" class="product-explore" @click.prevent="explore"
             ><span><AppIcon name="play" :size="13" /></span>了解学习流程</a
@@ -99,8 +99,8 @@
       <p>从理解到掌握</p>
       <h2>下一步学习，<br />从这里开始。</h2>
       <button class="product-primary" :disabled="busy" @click="experience">
-        体验示例课程<AppIcon name="arrow" :size="18" /></button
-      ><span>先体验，再建立属于自己的课程。</span>
+        进入学习空间<AppIcon name="arrow" :size="18" /></button
+      ><span>登录账号，建立属于自己的课程。</span>
     </section>
     <PublicFooter :inert="introOpen ? '' : null"
       ><BrandLogo /><span class="footer-description"
@@ -144,7 +144,6 @@ import LearningBloom from "../components/product/LearningBloom.vue";
 import { createTextReveals } from "../utils/textMotion";
 import { navigation } from "../utils/navigation";
 import { state, persist } from "../store";
-import { enterDemo } from "../services/auth";
 import { getToken } from "../services/api";
 import { motionAllowed, motion } from "../utils/motion";
 const INTRO_KEY = "zhixu-product-intro-seen-v1";
@@ -384,8 +383,7 @@ export default {
       this.busy = true;
       this.error = "";
       try {
-        if (!getToken()) await enterDemo();
-        await this.$router.push("/app/overview");
+        await this.$router.push(getToken() ? "/app/overview" : "/login");
       } catch (error) {
         this.error = error.message || "暂时无法进入，请重试。";
       } finally {

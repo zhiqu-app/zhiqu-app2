@@ -94,7 +94,6 @@
   </div>
 </template>
 <script>
-import { questions } from "../data/demo";
 import { state, persist, uid, notify } from "../store";
 import { loadMistakes, planMistake } from "../services/questions";
 export default {
@@ -109,21 +108,7 @@ export default {
   }),
   computed: {
     mistakes() {
-      if (state.mode === "account") return this.remoteMistakes;
-      return questions
-        .map((q) => {
-          const all = state.attempts.filter((a) => a.questionId === q.id);
-          const wrong = all.filter((a) => !a.correct);
-          return wrong.length
-            ? {
-                ...q,
-                reviewed: all[all.length - 1].correct,
-                wrongCount: wrong.length,
-                lastWrong: wrong[wrong.length - 1],
-              }
-            : null;
-        })
-        .filter(Boolean);
+      return this.remoteMistakes;
     },
     filtered() {
       return this.mistakes.filter(
@@ -164,22 +149,7 @@ export default {
         }
         return;
       }
-      const title = "巩固：" + q.point + "（" + q.id + "）";
-      if (state.tasks.some((t) => t.title === title && !t.done)) {
-        notify("这道题已经在待复习计划中了。");
-        return;
-      }
-      state.tasks.push({
-        id: uid(),
-        title,
-        description: q.title,
-        minutes: 10,
-        date: "",
-        done: false,
-        target: "/app/practice?question=" + q.id,
-      });
-      persist();
-      notify("已加入复习计划");
+      notify("请登录账号后安排复习。");
     },
     retry(q) {
       if (state.mode === "account") {
@@ -199,18 +169,6 @@ export default {
         });
         return;
       }
-      let draft = {};
-      const demoCourse = q.courseId || state.courses[0]?.id || "linear";
-      const demoKey = "zhixu-practice-draft:demo:demo:" + demoCourse;
-      try {
-        draft = JSON.parse(sessionStorage.getItem(demoKey)) || {};
-      } catch (_) {}
-      if (draft.answers) delete draft.answers[q.id];
-      sessionStorage.setItem(demoKey, JSON.stringify(draft));
-      this.$router.push({
-        path: "/app/practice",
-        query: { course: demoCourse, question: q.id },
-      });
     },
   },
   created() {

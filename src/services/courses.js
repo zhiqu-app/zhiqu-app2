@@ -26,22 +26,29 @@ async function pages(path) {
   throw new Error("列表数据过多，请先整理后重试。");
 }
 
-function mergeRemote(remote, local) {
-  const ids = new Set(remote.map((item) => item.id));
-  return [
-    ...remote.map((item) => ({ ...item, _remote: true })),
-    ...local
-      .filter((item) => !ids.has(item.id) && !item._remote)
-      .map((item) => ({ ...item, _remote: false })),
-  ];
+function mergeRemote(remote) {
+  return remote.map((item) => ({ ...item, _remote: true }));
 }
 
 async function loadList(type, force) {
-  if (state.mode !== "account") return state[type];
   const scope = accountScope(),
     key = `${scope}:${type}`;
   if (!force && state[type + "Loaded"]) return state[type];
-  if (pending.has(key)) return pending.get(key);
+  const active = pending.get(key);
+  if (active) {
+    if (!force) return active.operation;
+    // A change signal can arrive after the active GET took its snapshot. Read
+    // again after it settles; coalesce signals received during this generation.
+    if (!active.refresh)
+      active.refresh = active.operation
+        .catch(() => undefined)
+        .then(() => {
+          assertScope(scope);
+          return loadList(type, true);
+        });
+    return active.refresh;
+  }
+  const entry = { operation: null, refresh: null };
   const operation = pages("/" + type)
     .then((items) => {
       assertScope(scope);
@@ -51,13 +58,51 @@ async function loadList(type, force) {
       return state[type];
     })
     .finally(() => {
-      if (pending.get(key) === operation) pending.delete(key);
+      if (pending.get(key) === entry) pending.delete(key);
     });
-  pending.set(key, operation);
+  entry.operation = operation;
+  pending.set(key, entry);
   return operation;
 }
 export const loadCourses = (force = false) => loadList("courses", force);
 export const loadTasks = (force = false) => loadList("tasks", force);
+
+// Keep all task consumers reactive when an attempt or detail request returns progress.
+export function mergeTask(task) {
+  if (!task?.id) throw new Error("计划响应不完整，请重新加载。");
+  const index = state.tasks.findIndex((item) => item.id === task.id);
+  const saved = {
+    ...(index >= 0 ? state.tasks[index] : {}),
+    ...task,
+    _remote: true,
+  };
+  if (index < 0) state.tasks.push(saved);
+  else Vue.set(state.tasks, index, saved);
+  persist();
+  return saved;
+}
+
+export async function getTask(id) {
+  const scope = accountScope();
+  assertScope(scope);
+  const task = await request("/tasks/" + encodeURIComponent(id));
+  assertScope(scope);
+  return mergeTask(task);
+}
+
+export async function toggleSubtask(taskId, subtaskId, done) {
+  const scope = accountScope();
+  assertScope(scope);
+  const task = await request(
+    "/tasks/" +
+      encodeURIComponent(taskId) +
+      "/subtasks/" +
+      encodeURIComponent(subtaskId),
+    { method: "PATCH", body: { done } },
+  );
+  assertScope(scope);
+  return mergeTask(task);
+}
 
 export async function createCourse(form) {
   const scope = accountScope();
@@ -73,27 +118,6 @@ export async function createCourse(form) {
   assertScope(scope);
   const saved = { ...course, _remote: true };
   state.courses.push(saved);
-  persist();
-  return saved;
-}
-
-// 旧版本本机课程由用户显式同步；保留本机资料并重映射课程引用。
-export async function syncLocalCourse(course) {
-  const saved = await createCourse(course);
-  state.courses = state.courses.filter((item) => item.id !== course.id);
-  state.materials.forEach((item) => {
-    if (item.courseId === course.id) item.courseId = saved.id;
-  });
-  for (const task of state.tasks) {
-    if (task.target === "/app/courses/" + course.id)
-      task.target = "/app/courses/" + saved.id;
-    else if (task.target?.includes("course=" + course.id)) {
-      const target = new URL(task.target, window.location.origin);
-      if (target.searchParams.get("course") === course.id)
-        target.searchParams.set("course", saved.id);
-      task.target = target.pathname + target.search;
-    }
-  }
   persist();
   return saved;
 }
@@ -123,9 +147,8 @@ export async function getCourse(id) {
 }
 
 export async function loadMaterials(course) {
-  if (state.mode !== "account" || !course._remote)
-    return state.materials.filter((item) => item.courseId === course.id);
   const scope = accountScope();
+  assertScope(scope);
   const remote = await pages(
     "/materials?courseId=" + encodeURIComponent(course.id),
   );
@@ -162,7 +185,6 @@ export async function uploadMaterial(courseId, file) {
 }
 
 export async function previewMaterial(item) {
-  if (!item._remote) return item;
   const scope = accountScope();
   const detail = await request("/materials/" + encodeURIComponent(item.id));
   assertScope(scope);
@@ -192,35 +214,48 @@ export async function deleteMaterial(item) {
 
 export async function saveTask(form) {
   const scope = accountScope();
+  assertScope(scope);
+  const kind = form.kind === "exercise" ? "exercise" : "custom";
+  if (kind === "exercise" && (!form.courseId || !form.questionIds?.length))
+    throw new Error("请选择课程和至少一道题目。");
+  const existing = state.tasks.find((item) => item.id === form.id);
+  const remote = existing?._remote;
   const body = {
     title: form.title,
     description: form.description || "",
     minutes: form.minutes,
     date: form.date || "",
-    done: Boolean(form.done),
-    target: form.target || "/app/practice",
+    ...(kind === "custom"
+      ? {
+          subtasks: (form.subtasks || [{ title: form.title }]).map((item) => ({
+            ...(remote && item.id ? { id: item.id } : {}),
+            title: item.title,
+          })),
+        }
+      : {}),
+    ...(kind === "custom" ? { target: form.target || "/app/practice" } : {}),
+    kind,
+    courseId: kind === "exercise" ? form.courseId : null,
+    questionIds: kind === "exercise" ? [...form.questionIds] : [],
+    reminderAt: form.reminderAt || null,
   };
-  const existing = state.tasks.find((item) => item.id === form.id);
-  const remote = existing?._remote;
   const result = await request(
     remote ? "/tasks/" + encodeURIComponent(form.id) : "/tasks",
     { method: remote ? "PATCH" : "POST", body },
   );
   assertScope(scope);
-  state.tasks = [
-    ...state.tasks.filter((item) => item.id !== form.id),
-    { ...result, _remote: true },
-  ];
-  persist();
+  if (form.id && form.id !== result.id)
+    state.tasks = state.tasks.filter((item) => item.id !== form.id);
+  mergeTask(result);
   return result;
 }
 
 export async function removeTask(task) {
   const scope = accountScope();
-  if (task._remote)
-    await request("/tasks/" + encodeURIComponent(task.id), {
-      method: "DELETE",
-    });
+  assertScope(scope);
+  await request("/tasks/" + encodeURIComponent(task.id), {
+    method: "DELETE",
+  });
   assertScope(scope);
   state.tasks = state.tasks.filter((item) => item.id !== task.id);
   persist();

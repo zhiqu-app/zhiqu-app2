@@ -48,7 +48,7 @@
       class="panel bank-status"
     >
       <h2>先把课程保存到账号</h2>
-      <p>题库会保存在对应课程下，本机课程请先在课程详情同步。</p>
+      <p>题库保存在后端对应课程下，请返回课程列表重新读取课程。</p>
       <router-link
         :to="
           state.mode === 'account'
@@ -56,9 +56,7 @@
             : '/login'
         "
         class="button primary"
-        >{{
-          state.mode === "account" ? "返回课程同步" : "登录账号"
-        }}</router-link
+        >{{ "返回课程同步" }}</router-link
       >
     </section>
     <div v-else class="content-with-aside">

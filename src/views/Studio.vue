@@ -51,9 +51,7 @@
             </option>
             <option v-if="!materials.length" value="">暂无资料</option>
           </select>
-          <span class="badge">{{
-            remoteCourse ? "账号课程资料" : "本机资料"
-          }}</span>
+          <span class="badge">{{ "账号课程资料" }}</span>
         </div>
         <aside
           v-if="activeSource"
@@ -176,11 +174,7 @@
             <AppIcon name="spark" :size="28" />
             <h3>让问题带你走近理解</h3>
             <p>
-              {{
-                remoteCourse
-                  ? "问答与引用保存在账号中，下次进入这门课程可继续查看。"
-                  : "当前为本地体验，不保存到服务器。"
-              }}
+              {{ "问答与引用保存在账号中，下次进入这门课程可继续查看。" }}
             </p>
             <button
               v-for="text in suggestions"
@@ -219,9 +213,7 @@
         <div class="chat-compose">
           <p class="small muted">
             <AppIcon name="info" :size="14" />{{
-              remoteCourse
-                ? "支持可解析的课程文字与 PDF；扫描图片暂无 OCR。"
-                : "仅检索本机文字资料。"
+              "支持可解析的课程文字与 PDF；扫描图片暂无 OCR。"
             }}
           </p>
           <form @submit.prevent="send(question)">
@@ -258,7 +250,6 @@
 <script>
 import UserAvatar from "../components/UserAvatar.vue";
 import { state, uid, notify } from "../store";
-import { askAssistant } from "../services/assistant";
 import { locateSource, sourceParagraphs } from "../utils/sourceLocation";
 import { motionAllowed } from "../utils/motion";
 import {
@@ -309,9 +300,10 @@ export default {
       return this.materials.filter((m) => m.text);
     },
     canAsk() {
-      return this.remoteCourse
-        ? this.materials.some((m) => m._remote && m.parseStatus === "ready")
-        : state.mode === "demo" && this.searchable.length > 0;
+      return (
+        this.remoteCourse &&
+        this.materials.some((m) => m._remote && m.parseStatus === "ready")
+      );
     },
     paragraphs() {
       return sourceParagraphs(this.document?.text, this.sourceRange);
@@ -469,16 +461,10 @@ export default {
       const generation = ++this.generation;
       this.controller = new AbortController();
       try {
-        const answer = this.remoteCourse
-          ? await askAccountAssistant(
-              { courseId: this.courseId, question },
-              this.controller.signal,
-            )
-          : await askAssistant({
-              question,
-              materials: this.searchable,
-              signal: this.controller.signal,
-            });
+        const answer = await askAccountAssistant(
+          { courseId: this.courseId, question },
+          this.controller.signal,
+        );
         if (generation !== this.generation) return;
         this.answerMode = answer.mode || "";
         this.messages.push({
@@ -881,7 +867,7 @@ export default {
     min-height: 52px;
     max-height: 140px;
     font-size: 13px;
-    &:focus-visible{
+    &:focus-visible {
       outline-offset: 0px;
     }
   }

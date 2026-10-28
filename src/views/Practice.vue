@@ -8,11 +8,7 @@
         >
         <h1>{{ submitted ? "练习解析" : "课程巩固练习" }}</h1>
         <p>
-          {{
-            state.mode === "account"
-              ? "题目与判分来自后端，作答保存在你的账号中。"
-              : "本地示例题库 · 仅用于体验"
-          }}
+          {{ "题目与判分来自后端，作答保存在你的账号中。" }}
         </p>
       </div>
       <div class="button-row">
@@ -39,12 +35,43 @@
         >
       </div>
     </header>
+    <section
+      v-if="task && !loading && !loadError"
+      class="panel practice-task"
+      aria-live="polite"
+    >
+      <div>
+        <span class="badge">习题计划</span>
+        <h2>{{ task.title }}</h2>
+        <p>
+          <strong>{{ task.done ? "计划已完成" : "继续完成你的计划" }}</strong> ·
+          已提交 {{ (task.completedQuestionIds || []).length }} /
+          {{ task.questionIds.length }} 题
+        </p>
+        <p class="small muted">
+          全部选定题目提交即完成，不要求全部答对；答错仍会进入错题本。
+        </p>
+      </div>
+      <div class="button-row">
+        <button
+          v-if="task.done"
+          class="button secondary"
+          :disabled="busy"
+          @click="restartTask"
+        >
+          重新练习全部题目
+        </button>
+        <router-link to="/app/plan" class="button secondary"
+          >返回复习计划</router-link
+        >
+      </div>
+    </section>
     <label v-if="state.courses.length" class="practice-course"
       >练习课程<select
         v-model="courseId"
         class="input"
         aria-label="练习课程"
-        :disabled="busy"
+        :disabled="busy || !!taskId || loading"
         @change="changeCourse"
       >
         <option v-for="item in state.courses" :key="item.id" :value="item.id">
@@ -98,7 +125,8 @@
                 chosen: choice === i,
                 correct: submitted && i === graded.answer,
                 wrong: submitted && choice === i && choice !== graded.answer,
-              }">
+              }"
+            >
               <input
                 v-model="choice"
                 type="radio"
@@ -109,7 +137,9 @@
               />
               <span class="option-letter">{{ letters[i] }}</span>
               <span>{{ option }}</span>
-              <span v-if="submitted && i === graded.answer" class="badge">正确答案</span>
+              <span v-if="submitted && i === graded.answer" class="badge"
+                >正确答案</span
+              >
             </label>
           </div>
           <p v-if="submitError" class="error-message" role="alert">
@@ -119,7 +149,8 @@
             v-if="submitted"
             class="answer-explanation"
             :class="{ incorrect: choice !== graded.answer }"
-            aria-live="polite">
+            aria-live="polite"
+          >
             <h3>
               <AppIcon :name="choice === graded.answer ? 'check' : 'info'" />{{
                 choice === graded.answer
@@ -145,11 +176,7 @@
             @click="go(index - 1)"
           >
             上一题</button
-          ><span class="muted small">{{
-            state.mode === "account"
-              ? "后端题库 · 服务端判分"
-              : "本地示例 · 本地判分"
-          }}</span
+          ><span class="muted small">{{ "后端题库 · 服务端判分" }}</span
           ><button
             v-if="!submitted"
             class="button primary"
@@ -169,14 +196,21 @@
             <button
               v-for="(q, i) in questions"
               :key="q.id"
-              :class="{ current: index === i, answered: answers[q.id] }"
+              :class="{
+                current: index === i,
+                answered: answers[q.id] || isTaskQuestionCompleted(q.id),
+              }"
               :aria-label="'跳转到第' + (i + 1) + '题'"
               :disabled="busy"
               @click="go(i)"
             >
               <span>{{ i + 1 }}</span
               >{{ q.point
-              }}<AppIcon v-if="answers[q.id]" name="check" :size="16" />
+              }}<AppIcon
+                v-if="answers[q.id] || isTaskQuestionCompleted(q.id)"
+                name="check"
+                :size="16"
+              />
             </button>
           </div>
         </section>
@@ -192,9 +226,13 @@
   </div>
 </template>
 <script>
-import { questions as demoQuestions } from "../data/demo";
-import { state, saveAttempt, uid, notify } from "../store";
-import { loadCourses } from "../services/courses";
+import { state, uid, notify } from "../store";
+import {
+  loadCourses,
+  getCourse,
+  getTask,
+  mergeTask,
+} from "../services/courses";
 import {
   loadQuestions,
   loadQuestion,
@@ -205,6 +243,7 @@ export default {
   data: () => ({
     state,
     courseId: "",
+    taskId: "",
     questions: [],
     index: 0,
     answers: {},
@@ -223,6 +262,9 @@ export default {
     letters: "ABCDEF",
   }),
   computed: {
+    task() {
+      return state.tasks.find((item) => item.id === this.taskId) || null;
+    },
     course() {
       return state.courses.find((c) => c.id === this.courseId) || null;
     },
@@ -247,13 +289,9 @@ export default {
     this.load();
   },
   watch: {
-    "$route.query.question"(value, old) {
-      if (value !== old && !this.loading) this.load();
-    },
-    "$route.query.course"(value) {
-      if (value && value !== this.courseId) {
+    "$route.fullPath"(value, old) {
+      if (value !== old) {
         this.saveDraft();
-        this.courseId = value;
         this.load();
       }
     },
@@ -271,18 +309,45 @@ export default {
   methods: {
     async load() {
       const revision = ++this.loadRevision;
+      const query = { ...this.$route.query };
+      const taskId = typeof query.task === "string" ? query.task : "";
       this.loading = true;
       this.loadError = "";
       this.submitError = "";
+      this.questions = [];
+      this.answers = {};
+      this.choice = null;
+      this.pendingSubmission = null;
+      this.finished = false;
+      this.draftKey = "";
+      this.taskId = taskId;
       try {
+        if (query.task !== undefined && !taskId)
+          throw new Error("计划链接无效，请返回复习计划重新打开。");
         await loadCourses();
-        let requested = this.$route.query.question;
+        if (this._isDestroyed || revision !== this.loadRevision) return;
+        let requested = query.question;
         let id =
-          typeof this.$route.query.course === "string"
-            ? this.$route.query.course
-            : this.courseId;
-        if (state.mode === "account" && requested) {
+          typeof query.course === "string" ? query.course : this.courseId;
+        let task = null;
+        if (taskId) {
+          if (state.mode !== "account")
+            throw new Error("请登录计划所属账号后查看习题计划。");
+          task = await getTask(taskId);
+          if (this._isDestroyed || revision !== this.loadRevision) return;
+          if (
+            task.kind !== "exercise" ||
+            !task.courseId ||
+            !task.questionIds?.length
+          )
+            throw new Error("该计划不是有效的习题计划，请返回复习计划查看。");
+          id = task.courseId;
+          requested = task.questionIds.includes(requested) ? requested : null;
+          await getCourse(id);
+          if (this._isDestroyed || revision !== this.loadRevision) return;
+        } else if (state.mode === "account" && requested) {
           const question = await loadQuestion(requested);
+          if (this._isDestroyed || revision !== this.loadRevision) return;
           id = question.courseId;
         }
         this.courseId =
@@ -293,12 +358,21 @@ export default {
         let questions = [];
         if (state.mode === "account" && this.course?._remote)
           questions = await loadQuestions(this.courseId);
-        else if (state.mode === "demo")
-          questions = demoQuestions.map((q) => ({
-            ...q,
-            courseId: this.courseId,
-          }));
         if (this._isDestroyed || revision !== this.loadRevision) return;
+        if (task) {
+          const byId = new Map(
+            questions.map((question) => [question.id, question]),
+          );
+          questions = task.questionIds.map((questionId) =>
+            byId.get(questionId),
+          );
+          if (
+            questions.some(
+              (question) => !question || question.courseId !== task.courseId,
+            )
+          )
+            throw new Error("计划中的部分题目无法读取，请返回计划或重新加载。");
+        }
         this.questions = questions;
         this.restoreDraft(requested);
       } catch (error) {
@@ -312,7 +386,11 @@ export default {
     restoreDraft(requested) {
       this.owner = state.mode + ":" + (state.account?.id || "demo");
       this.draftKey =
-        "zhixu-practice-draft:" + this.owner + ":" + this.courseId;
+        "zhixu-practice-draft:" +
+        this.owner +
+        ":" +
+        this.courseId +
+        (this.taskId ? ":task:" + this.taskId : "");
       let draft = {};
       try {
         draft = JSON.parse(sessionStorage.getItem(this.draftKey)) || {};
@@ -323,7 +401,10 @@ export default {
         if (
           answer &&
           Number.isInteger(answer.choice) &&
-          answer.result?.attempt?.questionId === q.id
+          answer.result?.attempt?.questionId === q.id &&
+          (!this.taskId ||
+            (answer.result?.task?.id === this.taskId &&
+              this.isTaskQuestionCompleted(q.id)))
         )
           this.answers[q.id] = answer;
       }
@@ -340,7 +421,13 @@ export default {
           ? draft.seconds
           : 0;
       this.startedAt = this.seconds;
-      this.pendingSubmission = draft.pendingSubmission || null;
+      const pending = draft.pendingSubmission;
+      this.pendingSubmission =
+        pending &&
+        this.questions.some((question) => question.id === pending.questionId) &&
+        (pending.taskId || "") === this.taskId
+          ? pending
+          : null;
       this.choice = this.answers[this.current?.id]?.choice ?? null;
     },
     saveDraft() {
@@ -368,6 +455,10 @@ export default {
     },
     async submit() {
       if (this.choice === null || this.submitted || this.busy) return;
+      const revision = this.loadRevision;
+      const questionId = this.current.id;
+      const choice = this.choice;
+      const taskId = this.taskId;
       this.submitError = "";
       this.busy = true;
       try {
@@ -386,30 +477,25 @@ export default {
                 Math.max(1, this.seconds - this.startedAt),
               ),
               submissionId: "practice_" + uid(),
+              ...(taskId ? { taskId } : {}),
             };
           this.saveDraft();
           result = await submitAnswer(this.pendingSubmission);
-        } else {
-          saveAttempt(
-            this.current.id,
-            this.choice,
-            Math.max(1, this.seconds - this.startedAt),
-          );
-          result = {
-            attempt: { questionId: this.current.id },
-            answer: this.current.answer,
-            explanation: this.current.explanation,
-            point: this.current.point,
-          };
-        }
-        this.$set(this.answers, this.current.id, {
-          choice: this.choice,
+          if (taskId) {
+            if (result.task?.id !== taskId)
+              throw new Error("计划进度响应不完整，请重试保存。");
+            mergeTask(result.task);
+          }
+        } else throw new Error("请登录账号后提交作答。");
+        if (this._isDestroyed || revision !== this.loadRevision) return;
+        this.$set(this.answers, questionId, {
+          choice,
           result,
         });
         this.pendingSubmission = null;
         this.saveDraft();
       } catch (error) {
-        if (error.name !== "AbortError")
+        if (revision === this.loadRevision && error.name !== "AbortError")
           this.submitError = error.message || "作答尚未保存，请重试。";
       } finally {
         this.busy = false;
@@ -424,6 +510,7 @@ export default {
       this.saveDraft();
     },
     async changeCourse() {
+      if (this.taskId) return;
       this.saveDraft();
       this.questions = [];
       this.answers = {};
@@ -433,7 +520,19 @@ export default {
         path: "/app/practice",
         query: { course: this.courseId },
       });
-      await this.load();
+    },
+    isTaskQuestionCompleted(id) {
+      return Boolean(this.task?.completedQuestionIds?.includes(id));
+    },
+    restartTask() {
+      if (this.busy || !this.task?.done) return;
+      this.answers = {};
+      this.index = 0;
+      this.choice = null;
+      this.pendingSubmission = null;
+      this.submitError = "";
+      this.startedAt = this.seconds;
+      this.saveDraft();
     },
     retry() {
       this.$delete(this.answers, this.current.id);
@@ -473,6 +572,30 @@ export default {
     max-width: 75%;
     background: @bg;
     color: @text;
+  }
+}
+.practice-task {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  h2 {
+    font-size: 17px;
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+  }
+  p {
+    color: @muted;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  strong {
+    color: @cyan;
+  }
+  .button-row {
+    flex-shrink: 0;
+    flex-wrap: wrap;
   }
 }
 
@@ -600,6 +723,10 @@ export default {
 }
 
 @media (max-width: 767px) {
+  .practice-task {
+    align-items: flex-start;
+    flex-direction: column;
+  }
   .question-status {
     padding: 14px;
     gap: 12px;

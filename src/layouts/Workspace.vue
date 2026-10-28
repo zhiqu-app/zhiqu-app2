@@ -47,35 +47,18 @@
             placeholder="搜索课程、资料或知识点"
           />
         </form>
-        <button
-          v-if="state.settings.reminders"
-          class="icon-button notification-button"
-          aria-label="学习提醒"
-          @click="notify('今天也记得给自己留一点学习时间。')"
-        >
-          <AppIcon name="bell" />
-          <i />
-        </button>
+        <NotificationCenter />
         <router-link to="/app/settings" aria-label="打开个人设置">
           <UserAvatar :name="state.settings.name" :size="34" />
         </router-link>
       </header>
       <div class="demo-banner">
-        <span
-          ><i class="dot cyan" />
-          {{ state.mode === "account" ? "账号已登录" : "本地演示空间" }}</span
-        >
-        <span>
-          {{
-            state.mode === "account"
-              ? "课程、资料、题库、星图与问答已连接账号"
-              : "数据保存在此浏览器 · AI 使用本地资料检索演示"
-          }}
-        </span>
+        <span><i class="dot cyan" /> 账号已登录</span>
+        <span>课程、资料、题库、星图与问答由后端提供</span>
         <router-link to="/welcome">产品首页</router-link>
       </div>
       <p v-if="state.storageError" class="error-message" role="alert">
-        浏览器无法保存数据，请先导出学习记录。
+        浏览器无法保存界面偏好，学习数据以服务器为准。
       </p>
       <main
         class="workspace-content"
@@ -88,12 +71,14 @@
           name="page-view"
           mode="out-in"
           :css="allowMotion"
-          @after-enter="workspaceReady">
+          @after-enter="workspaceReady"
+        >
           <router-view
             :key="$route.path"
             v-page-reveal
             class="route-page"
-            :data-route-path="$route.fullPath"/>
+            :data-route-path="$route.fullPath"
+          />
         </transition>
       </main>
     </div>
@@ -117,12 +102,13 @@
 <script>
 import SideMenu from "../components/SideMenu.vue";
 import UserAvatar from "../components/UserAvatar.vue";
+import NotificationCenter from "../components/NotificationCenter.vue";
 import { state, notify } from "../store";
 import { navigation, revealPage } from "../utils/navigation";
 import { motionAllowed } from "../utils/motion";
 export default {
   name: "Workspace",
-  components: { SideMenu, UserAvatar },
+  components: { SideMenu, UserAvatar, NotificationCenter },
   data: () => ({
     state,
     navigation,
@@ -288,18 +274,6 @@ export default {
     font-size: 12px;
   }
 }
-.notification-button {
-  position: relative;
-  i {
-    position: absolute;
-    top: 4px;
-    right: 7px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #ff5a66;
-  }
-}
 .demo-banner {
   min-height: 28px;
   display: flex;
@@ -390,9 +364,6 @@ export default {
           color: #d8eaff;
         }
       }
-    }
-    .notification-button {
-      width: 35px;
     }
   }
   .top-search {

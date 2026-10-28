@@ -2,6 +2,7 @@ import Vue from "vue";
 import { request } from "./api";
 import { state } from "../store";
 import { accountScope, assertScope } from "./courses";
+import { normalizeGroups } from "../utils/knowledgeGroups";
 
 const pending = new Map();
 
@@ -40,7 +41,7 @@ function validateGraph(graph, courseId) {
   ) {
     throw new Error("知识点连线无效，请重新加载。");
   }
-  return graph;
+  return normalizeGroups(graph);
 }
 
 function applyGraph(graph) {

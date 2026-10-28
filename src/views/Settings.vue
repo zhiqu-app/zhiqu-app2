@@ -6,7 +6,7 @@
         <p>管理个人资料、账号学习数据与连接状态。</p>
       </div>
       <button class="button secondary" :disabled="busy" @click="logout">
-        {{ state.mode === "account" ? "退出登录" : "退出体验" }}
+        {{ "退出登录" }}
       </button>
     </header>
     <div class="tabs settings-tabs">
@@ -95,13 +95,11 @@
           <AppIcon name="info" />
           <div>
             <h3>
-              {{ state.mode === "account" ? "账号学习空间" : "本地演示空间" }}
+              {{ "账号学习空间" }}
             </h3>
             <p>
               {{
-                state.mode === "account"
-                  ? "课程、PDF 原文件、题库、作答与问答保存在账号中，重新登录后可以读取。"
-                  : "演示数据仅保留在当前浏览器，不能作为账号资料。"
+                "课程、PDF 原文件、题库、作答与问答保存在账号中，重新登录后可以读取。"
               }}
             </p>
             <p>示例题库文件只在前端供下载或预览，不会自动导入你的课程。</p>
@@ -129,9 +127,7 @@
         <AppIcon name="download" /><span
           ><strong>导出学习数据</strong
           ><small>{{
-            state.mode === "account"
-              ? "导出账号课程、资料文字、作答、计划和问答；不包含 PDF 原文件、题库和星图"
-              : "导出本机演示记录"
+            "导出账号课程、资料文字、作答、计划和问答；不包含 PDF 原文件、题库和星图"
           }}</small></span
         ><button
           class="button secondary small-button"
@@ -143,13 +139,9 @@
       </div>
       <div class="preference-row">
         <AppIcon name="trash" /><span
-          ><strong>{{
-            state.mode === "account" ? "清空账号学习数据" : "重置本地学习数据"
-          }}</strong
+          ><strong>{{ "清空账号学习数据" }}</strong
           ><small>{{
-            state.mode === "account"
-              ? "删除账号中的课程及其 PDF、题库、作答、星图、问答和计划；保留登录账号与个人资料"
-              : "恢复本地示例，不影响真实账号数据"
+            "删除账号中的课程及其 PDF、题库、作答、星图、问答和计划；保留登录账号与个人资料"
           }}</small></span
         ><button
           class="button danger small-button"
@@ -160,21 +152,17 @@
             resetError = '';
           "
         >
-          {{ state.mode === "account" ? "清空账号数据" : "重置数据" }}
+          {{ "清空账号数据" }}
         </button>
       </div>
     </section>
     <AppModal
       v-if="confirmReset"
-      :title="
-        state.mode === 'account' ? '清空账号学习数据？' : '重置本机演示？'
-      "
+      :title="'清空账号学习数据？'"
       @close="closeReset"
       ><p>
         {{
-          state.mode === "account"
-            ? "这会删除账号中全部学习数据，包括已保存的 PDF 原文件。登录账号和个人资料会保留。"
-            : "这会恢复本机示例数据。"
+          "这会删除账号中全部学习数据，包括已保存的 PDF 原文件。登录账号和个人资料会保留。"
         }}
       </p>
       <label
@@ -274,10 +262,7 @@ export default {
       if (this.busy || !this.form.name) return;
       this.busy = true;
       try {
-        const profile =
-          state.mode === "account"
-            ? await api.saveProfile(this.form)
-            : this.form;
+        const profile = await api.saveProfile(this.form);
         Object.assign(state.settings, profile);
         if (state.account) state.account.profile = { ...profile };
         persist();
@@ -294,7 +279,7 @@ export default {
         reminders: this.form.reminders,
       };
       try {
-        if (state.mode === "account") await api.saveProfile(values);
+        await api.saveProfile(values);
         Object.assign(state.settings, values);
         persist();
       } catch (error) {
@@ -316,26 +301,8 @@ export default {
       if (this.busy) return;
       this.busy = true;
       try {
-        const value =
-          state.mode === "account"
-            ? await exportAccountData()
-            : {
-                version: 1,
-                exportedAt: new Date().toISOString(),
-                courses: state.courses,
-                materials: state.materials
-                  .filter((m) => !m.temporary)
-                  .map(({ url, ...m }) => m),
-                tasks: state.tasks,
-                attempts: state.attempts,
-                settings: state.settings,
-              };
-        downloadJson(
-          value,
-          state.mode === "account"
-            ? "知序-账号学习记录.json"
-            : "知序-本机演示记录.json",
-        );
+        const value = await exportAccountData();
+        downloadJson(value, "知序-账号学习记录.json");
         notify("学习记录已导出");
       } catch (error) {
         notify(error.message);
@@ -352,12 +319,10 @@ export default {
       this.busy = true;
       this.resetError = "";
       try {
-        if (state.mode === "account") await resetAccountData();
+        await resetAccountData();
         resetData();
         this.confirmReset = false;
-        notify(
-          state.mode === "account" ? "账号学习数据已清空" : "本机示例已恢复",
-        );
+        notify("账号学习数据已清空");
       } catch (error) {
         this.resetError = error.message;
       } finally {

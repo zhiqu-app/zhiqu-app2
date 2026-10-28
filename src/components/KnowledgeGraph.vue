@@ -4,7 +4,11 @@
     :data-phase="phase"
     :class="{ 'motion-static': motionReduced }"
   >
-    <svg viewBox="0 0 760 300" role="group" :aria-label="title">
+    <svg
+      :viewBox="'0 0 ' + canvasWidth + ' 300'"
+      role="group"
+      :aria-label="title"
+    >
       <defs>
         <filter :id="glowId" x="-100%" y="-100%" width="300%" height="300%">
           <feGaussianBlur stdDeviation="4" />
@@ -73,7 +77,7 @@
         <circle class="selection-aura" r="24" fill="#ffc777" opacity=".06" />
       </g>
       <g
-        v-for="(node, i) in nodes"
+        v-for="node in projectedNodes"
         :key="'node-' + node.id"
         class="graph-node"
         :class="{ 'is-selected': activeSelected === node.id }"
@@ -85,6 +89,7 @@
         @keydown.enter.prevent="choose(node)"
         @keydown.space.prevent="choose(node)"
       >
+        <title>{{ node.label }}</title>
         <!-- 扩大点击区域，包含文字与光点之间的空隙，键盘交互仍由外层节点负责。 -->
         <circle
           class="node-hit"
@@ -117,12 +122,19 @@
         />
         <text
           :x="node.x"
-          :y="node.y + (i % 2 ? -26 : 35)"
+          :y="node.y + 32"
           text-anchor="middle"
           fill="#bad7f0"
-          font-size="15"
+          :font-size="canvasWidth < 500 ? 13 : 15"
         >
-          {{ node.label }}
+          <tspan
+            v-for="(part, lineIndex) in labelLines(node.label)"
+            :key="lineIndex"
+            :x="node.x"
+            :dy="lineIndex ? 17 : 0"
+          >
+            {{ part }}
+          </tspan>
         </text>
       </g>
     </svg>
@@ -152,13 +164,25 @@ export default {
     phase: "waiting",
     inViewport: false,
     pageHidden: document.hidden,
+    canvasWidth: 760,
   }),
   computed: {
     activeSelected() {
       return this.selected === undefined ? this.localSelected : this.selected;
     },
     selectedNode() {
-      return this.nodes.find((node) => node.id === this.activeSelected);
+      return this.projectedNodes.find(
+        (node) => node.id === this.activeSelected,
+      );
+    },
+    projectedNodes() {
+      // 逻辑坐标仍按760×300保存；仅投影到当前容器，不回写业务节点。
+      const padding = Math.min(72, Math.max(36, this.canvasWidth * 0.16));
+      return this.nodes.map((node) => ({
+        ...node,
+        x: padding + (node.x / 760) * (this.canvasWidth - padding * 2),
+        y: 40 + (node.y / 300) * 210,
+      }));
     },
     motionReduced() {
       return !motionAllowed();
@@ -200,6 +224,9 @@ export default {
     },
   },
   watch: {
+    canvasWidth() {
+      this.queueAnimation(false);
+    },
     graphSignature() {
       this._hasDrawn = false;
       this.queueAnimation(true);
@@ -217,6 +244,16 @@ export default {
     },
   },
   mounted() {
+    this._resize = () => {
+      const width = this.$el.clientWidth;
+      if (width > 0 && Math.abs(width - this.canvasWidth) > 0.5)
+        this.canvasWidth = width;
+    };
+    this._resize();
+    if ("ResizeObserver" in window) {
+      this._resizeObserver = new ResizeObserver(this._resize);
+      this._resizeObserver.observe(this.$el);
+    } else window.addEventListener("resize", this._resize);
     this._animation = createGraphAnimation(this.$el, (value) => {
       this.phase = value;
       if (value === "flowing" || value === "static") this._hasDrawn = true;
@@ -239,13 +276,36 @@ export default {
   beforeDestroy() {
     cancelAnimationFrame(this._frame);
     this._observer?.disconnect();
+    this._resizeObserver?.disconnect();
+    window.removeEventListener("resize", this._resize);
     document.removeEventListener("visibilitychange", this._visibility);
     this._animation?.destroy();
   },
   methods: {
+    labelLines(label) {
+      const chars = Array.from(label || "");
+      const limit = Math.max(
+        4,
+        Math.min(
+          9,
+          Math.floor(
+            (this.canvasWidth - 30) / 3 / (this.canvasWidth < 500 ? 13 : 15),
+          ),
+        ),
+      );
+      if (chars.length <= limit) return [chars.join("")];
+      return [
+        chars.slice(0, limit).join(""),
+        chars.slice(limit, limit * 2 - 1).join("") +
+          (chars.length > limit * 2 - 1 ? "…" : ""),
+      ];
+    },
     choose(node) {
       if (this.selected === undefined) this.localSelected = node.id;
-      this.$emit("select", node);
+      this.$emit(
+        "select",
+        this.nodes.find((item) => item.id === node.id) || node,
+      );
     },
     touchesSelection(edge) {
       return edge.some((index) => this.nodes[index].id === this.activeSelected);
@@ -267,8 +327,8 @@ export default {
       );
     },
     line(edge) {
-      const a = this.nodes[edge[0]],
-        b = this.nodes[edge[1]];
+      const a = this.projectedNodes[edge[0]],
+        b = this.projectedNodes[edge[1]];
       return `M${a.x},${a.y} L${b.x},${b.y}`;
     },
   },
@@ -283,6 +343,7 @@ export default {
 .knowledge-graph {
   position: relative;
   width: 100%;
+  min-width: 0;
   // 视觉样式留在组件；GSAP 仅控制路径偏移、透明度、光点位置和扩散半径。
   &[data-phase="waiting"] .graph-link {
     opacity: 0;
@@ -337,8 +398,9 @@ export default {
   > svg {
     display: block;
     width: 100%;
-    min-height: 200px;
-    overflow: visible;
+    height: 300px;
+    min-height: 0;
+    overflow: hidden;
   }
   .graph-node {
     cursor: pointer;
@@ -373,7 +435,7 @@ export default {
 @media (max-width: 767px) {
   .knowledge-graph {
     > svg {
-      min-height: 160px;
+      min-height: 0;
     }
     .graph-legend {
       font-size: 9px;

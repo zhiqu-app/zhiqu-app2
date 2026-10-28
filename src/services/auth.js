@@ -1,11 +1,5 @@
 import { api, getToken, clearToken, onUnauthorized } from "./api";
-import {
-  state,
-  activateAccount,
-  clearAccount,
-  notify,
-  enterDemo as enterLocalDemo,
-} from "../store";
+import { state, activateAccount, clearAccount, notify } from "../store";
 
 let restoring = null;
 onUnauthorized(() => {
@@ -57,20 +51,7 @@ export async function logoutAccount() {
   }
 }
 
-export async function enterDemo() {
-  // 本地体验不要求邮件/数据库服务，不能携带上一个真实账号的令牌。
-  try {
-    if (getToken()) await api.logout();
-  } catch (_) {
-    notify("已切换本地体验，服务端会话撤销未确认。");
-  } finally {
-    clearToken();
-    clearAccount();
-    enterLocalDemo();
-  }
-}
-
-// 只有用户主动选择在线示例空间才创建服务端体验账号，本地示例仍独立保留。
+// 在线示例由后端创建独立账号与数据；没有本地体验回退。
 export async function enterOnlineDemo() {
   if (getToken()) await logoutAccount();
   const result = await api.onlineDemo();

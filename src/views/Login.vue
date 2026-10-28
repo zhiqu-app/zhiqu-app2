@@ -93,14 +93,6 @@
             <AppIcon name="arrow" :size="18" />
           </button>
         </form>
-        <div class="login-divider"><span>或者</span></div>
-        <button
-          class="button secondary full-width"
-          :disabled="busy"
-          @click="experience"
-        >
-          体验示例课程（无需注册）
-        </button>
         <p class="login-note">
           <button
             class="text-button"
@@ -108,7 +100,7 @@
             :disabled="busy"
             @click="onlineExperience"
           >
-            打开在线示例空间
+            打开在线示例空间（后端数据）
           </button>
         </p>
         <p class="login-note">
@@ -125,7 +117,7 @@ import PublicHeader from "../components/PublicHeader.vue";
 import BrandLogo from "../components/BrandLogo.vue";
 import BookStage from "../components/BookStage.vue";
 import { notify } from "../store";
-import { loginAccount, enterDemo, enterOnlineDemo } from "../services/auth";
+import { loginAccount, enterOnlineDemo } from "../services/auth";
 export default {
   name: "Login",
   components: { PublicHeader, BrandLogo, BookStage },
@@ -195,18 +187,6 @@ export default {
       } catch (error) {
         if (error.name !== "NavigationDuplicated")
           this.error = error.message || "登录失败，请重试。";
-      } finally {
-        this.busy = false;
-      }
-    },
-    async experience() {
-      if (this.busy) return;
-      this.busy = true;
-      try {
-        await enterDemo();
-        await this.$router.push("/app/overview");
-      } catch (error) {
-        this.error = error.message;
       } finally {
         this.busy = false;
       }

@@ -11,7 +11,7 @@
         <p>
           {{
             course ? course.name : "先选择一门课程"
-          }}：把知识点和学习任务连起来。
+          }}：先自定义大知识点，再添加小知识点和先后关系。
         </p>
       </div>
       <button
@@ -33,13 +33,6 @@
     <section v-else-if="state.mode !== 'account'" class="panel editor-status">
       <h2>登录后保存课程星图</h2>
       <router-link to="/login" class="button primary">登录账号</router-link>
-    </section>
-    <section v-else-if="course && !course._remote" class="panel editor-status">
-      <h2>先把这门本机课程保存到账号</h2>
-      <p>旧资料会保留在本机，课程同步后即可保存星图。</p>
-      <button class="button primary" :disabled="saving" @click="sync">
-        同步课程并继续
-      </button>
     </section>
     <div v-else-if="course" class="graph-editor-layout">
       <form class="panel graph-editor-form" @submit.prevent="save">
@@ -64,27 +57,101 @@
           />
           <div class="editor-section-heading">
             <h2>
-              知识点 <small>{{ nodes.length }}/50</small>
+              自定义大知识点
+              <small>全课程 {{ nodes.length }}/50 个小知识点</small>
             </h2>
             <button
               type="button"
               class="text-button"
-              :disabled="nodes.length >= 50"
-              @click="addNode"
+              :disabled="groups.length >= 50"
+              @click="addGroup"
             >
-              添加知识点
+              新增大知识点
             </button>
           </div>
-          <p v-if="!nodes.length" class="muted">
-            还没有知识点。先添加一个你准备学习的概念或任务。
+          <nav class="editor-group-list" aria-label="编辑大知识点">
+            <button
+              v-for="group in groups"
+              :key="group.id"
+              type="button"
+              class="editor-group-choice"
+              :aria-current="activeGroupId === group.id ? 'true' : null"
+              @click="switchGroup(group.id)"
+            >
+              <span>{{ group.title || "未命名大知识点" }}</span
+              ><small>{{ groupCount(group.id) }}/6</small>
+            </button>
+          </nav>
+          <div v-if="currentGroup" class="group-editor-meta">
+            <label class="field-label" for="group-title">大知识点名称</label>
+            <input
+              id="group-title"
+              v-model="currentGroup.title"
+              class="input"
+              maxlength="80"
+              required
+              placeholder="例如：可靠传输，不必按教材章节命名"
+            />
+            <div class="group-editor-actions">
+              <button
+                type="button"
+                class="text-button"
+                :disabled="groups[0].id === activeGroupId"
+                @click="reorderGroup(-1)"
+              >
+                上移大知识点
+              </button>
+              <button
+                type="button"
+                class="text-button"
+                :disabled="groups[groups.length - 1].id === activeGroupId"
+                @click="reorderGroup(1)"
+              >
+                下移大知识点
+              </button>
+              <button
+                type="button"
+                class="text-button"
+                :disabled="activeNodes.length > 0"
+                @click="removeGroup"
+              >
+                删除空大知识点
+              </button>
+            </div>
+            <p class="muted small">
+              由你划分知识范围，每个大知识点最多包含 6
+              个小知识点。删除前先移动或删除里面的小知识点。
+            </p>
+          </div>
+          <div class="editor-section-heading">
+            <h2>
+              包含的小知识点 <small>{{ activeNodes.length }}/6</small>
+            </h2>
+            <button
+              type="button"
+              class="text-button"
+              :disabled="
+                !currentGroup || activeNodes.length >= 6 || nodes.length >= 50
+              "
+              @click="addNode"
+            >
+              添加小知识点
+            </button>
+          </div>
+          <p v-if="activeNodes.length > 6" class="error-message" role="alert">
+            此旧分组超过 6
+            个小知识点，内容和坐标已保留。请将多余知识点移至新大知识点后保存。
+          </p>
+          <p v-if="!activeNodes.length" class="muted">
+            当前大知识点还没有内容，先添加一个小知识点。
           </p>
           <article
-            v-for="(node, index) in nodes"
+            v-for="(node, index) in activeNodes"
             :key="node.id"
             class="node-editor"
           >
             <div class="node-editor-heading">
-              <strong>知识点 {{ index + 1 }}</strong
+              <strong>小知识点 {{ index + 1 }}</strong
               ><button
                 type="button"
                 class="text-button"
@@ -95,15 +162,28 @@
               </button>
             </div>
             <label class="field-label" :for="'node-label-' + node.id"
-              >知识点名称 {{ index + 1 }}</label
+              >小知识点名称 {{ index + 1 }}</label
             ><input
               :id="'node-label-' + node.id"
               v-model="node.label"
               class="input"
               maxlength="80"
               required
-              placeholder="自己填写知识点名称"
+              placeholder="例如：确认机制、超时重传、滑动窗口"
             />
+            <label class="field-label" :for="'node-group-' + node.id"
+              >所属大知识点</label
+            >
+            <select
+              :id="'node-group-' + node.id"
+              :value="node.groupId"
+              class="input node-group-select"
+              @change="moveNode(node, $event)"
+            >
+              <option v-for="group in groups" :key="group.id" :value="group.id">
+                {{ group.title || "未命名大知识点" }}
+              </option>
+            </select>
             <label class="field-label" :for="'node-description-' + node.id"
               >知识点说明 {{ index + 1 }}</label
             ><textarea
@@ -167,10 +247,10 @@
             <button
               type="button"
               class="text-button"
-              :disabled="!nodes.length"
+              :disabled="!activeNodes.length"
               @click="arrange"
             >
-              自动排布节点
+              自动排布当前组
             </button>
           </div>
           <div class="edge-inputs">
@@ -186,6 +266,7 @@
                   :key="node.id"
                   :value="node.id"
                 >
+                  {{ groupTitle(node.groupId) }} /
                   {{ node.label || "未命名知识点 " + (i + 1) }}
                 </option>
               </select></label
@@ -201,6 +282,7 @@
                   :key="node.id"
                   :value="node.id"
                 >
+                  {{ groupTitle(node.groupId) }} /
                   {{ node.label || "未命名知识点 " + (i + 1) }}
                 </option>
               </select></label
@@ -215,7 +297,7 @@
           </div>
           <ul class="edge-list">
             <li
-              v-for="(link, i) in links"
+              v-for="(link, i) in visibleLinks"
               :key="link.source + ':' + link.target"
             >
               <span>{{ label(link.source) }} → {{ label(link.target) }}</span
@@ -223,14 +305,14 @@
                 type="button"
                 class="text-button"
                 :aria-label="'删除连接 ' + (i + 1)"
-                @click="links.splice(i, 1)"
+                @click="removeLink(link)"
               >
                 移除
               </button>
             </li>
           </ul>
-          <p v-if="!links.length" class="muted small">
-            尚未连接知识点。先后关系可形成分支，不要求每个点都相连。
+          <p v-if="!visibleLinks.length" class="muted small">
+            当前组尚未连接知识点。可连接同组或其他大知识点的知识点，不要求每个点都相连。
           </p>
         </fieldset>
         <p v-if="error" class="error-message" role="alert">{{ error }}</p>
@@ -251,13 +333,13 @@
         <p class="muted">
           {{ goal || "知识点由你设定，连接表示学习的先后顺序。" }}
         </p>
-        <KnowledgeGraph
-          v-if="nodes.length"
-          :title="title"
-          :nodes="previewNodes"
-          :edges="previewEdges"
+        <GroupedKnowledgeGraph
+          v-if="groups.length"
+          :graph="previewGraph"
+          :group="activeGroupId"
           :selected="selectedNode ? selectedNode.id : ''"
-          @select="selectedId = $event.id"
+          @group="activeGroupId = $event"
+          @select="selectedId = $event ? $event.id : ''"
         />
         <div v-else class="editor-preview-empty">
           <AppIcon name="graph" :size="44" />
@@ -283,14 +365,15 @@
   </div>
 </template>
 <script>
-import KnowledgeGraph from "../components/KnowledgeGraph.vue";
+import GroupedKnowledgeGraph from "../components/GroupedKnowledgeGraph.vue";
+import { layoutGroup, nextNodePosition } from "../utils/knowledgeGroups";
 import { state, uid, notify } from "../store";
-import { getCourse, loadTasks, syncLocalCourse } from "../services/courses";
+import { getCourse, loadTasks } from "../services/courses";
 import { loadCourseGraph, saveCourseGraph } from "../services/course-knowledge";
 
 export default {
   name: "CourseKnowledgeEditor",
-  components: { KnowledgeGraph },
+  components: { GroupedKnowledgeGraph },
   data: () => ({
     state,
     course: null,
@@ -298,6 +381,8 @@ export default {
     goal: "",
     revision: 0,
     nodes: [],
+    groups: [],
+    activeGroupId: "",
     links: [],
     source: "",
     target: "",
@@ -311,6 +396,20 @@ export default {
     loadRevision: 0,
   }),
   computed: {
+    currentGroup() {
+      return (
+        this.groups.find((group) => group.id === this.activeGroupId) || null
+      );
+    },
+    activeNodes() {
+      return this.nodes.filter((node) => node.groupId === this.activeGroupId);
+    },
+    visibleLinks() {
+      const ids = new Set(this.activeNodes.map((node) => node.id));
+      return this.links.filter(
+        (link) => ids.has(link.source) || ids.has(link.target),
+      );
+    },
     availableTasks() {
       return state.tasks.filter((task) => task._remote);
     },
@@ -320,16 +419,17 @@ export default {
         label: node.label || "知识点 " + (i + 1),
       }));
     },
-    previewEdges() {
-      return this.links.map((link) => [
-        this.nodes.findIndex((node) => node.id === link.source),
-        this.nodes.findIndex((node) => node.id === link.target),
-      ]);
+    previewGraph() {
+      return {
+        groups: this.groups,
+        nodes: this.previewNodes,
+        links: this.links,
+      };
     },
     selectedNode() {
       return (
-        this.nodes.find((node) => node.id === this.selectedId) ||
-        this.nodes[0] ||
+        this.activeNodes.find((node) => node.id === this.selectedId) ||
+        this.activeNodes[0] ||
         null
       );
     },
@@ -352,6 +452,8 @@ export default {
       this.error = "";
       this.conflict = false;
       this.nodes = [];
+      this.groups = [];
+      this.activeGroupId = "";
       this.links = [];
       this.title = "";
       this.goal = "";
@@ -364,6 +466,12 @@ export default {
         this.title = graph.title;
         this.goal = graph.goal;
         this.revision = graph.revision;
+        this.groups = graph.groups.map((group) => ({
+          id: group.id,
+          title: group.title,
+        }));
+        this.activeGroupId = this.groups[0]?.id || "";
+        if (!this.groups.length) this.addGroup();
         this.nodes = graph.nodes.map((node) => ({
           id: node.id,
           label: node.label,
@@ -371,6 +479,7 @@ export default {
           x: node.x,
           y: node.y,
           taskId: node.taskId || null,
+          groupId: node.groupId,
         }));
         this.links = graph.links.map((link) => ({ ...link }));
         await this.refreshTasks();
@@ -396,15 +505,76 @@ export default {
     },
     addNode() {
       const i = this.nodes.length;
-      if (i >= 50) return;
+      if (i >= 50 || this.activeNodes.length >= 6 || !this.currentGroup) return;
+      const position = nextNodePosition(this.activeNodes);
+      if (!position) return;
       this.nodes.push({
         id: uid(),
         label: "",
         description: "",
         taskId: null,
-        x: 70 + (i % 5) * 150,
-        y: Math.min(250, 70 + Math.floor(i / 5) * 80),
+        groupId: this.activeGroupId,
+        ...position,
       });
+    },
+    groupCount(id) {
+      return this.nodes.filter((node) => node.groupId === id).length;
+    },
+    groupTitle(id) {
+      return (
+        this.groups.find((group) => group.id === id)?.title || "未命名大知识点"
+      );
+    },
+    addGroup() {
+      if (this.groups.length >= 50) return;
+      const group = {
+        id: uid(),
+        title: "新大知识点 " + (this.groups.length + 1),
+      };
+      this.groups.push(group);
+      this.switchGroup(group.id);
+    },
+    switchGroup(id) {
+      this.activeGroupId = id;
+      this.selectedId =
+        this.nodes.find((node) => node.groupId === id)?.id || "";
+      this.error = "";
+    },
+    removeGroup() {
+      if (this.activeNodes.length) return;
+      this.groups = this.groups.filter(
+        (group) => group.id !== this.activeGroupId,
+      );
+      this.switchGroup(this.groups[0]?.id || "");
+    },
+    reorderGroup(direction) {
+      const index = this.groups.findIndex(
+        (group) => group.id === this.activeGroupId,
+      );
+      const next = index + direction;
+      if (index < 0 || next < 0 || next >= this.groups.length) return;
+      const group = this.groups.splice(index, 1)[0];
+      this.groups.splice(next, 0, group);
+    },
+    moveNode(node, event) {
+      const groupId = event.target.value;
+      this.error = "";
+      if (groupId === node.groupId) return;
+      if (this.groupCount(groupId) >= 6) {
+        event.target.value = node.groupId;
+        this.error = "一个大知识点最多包含 6 个知识点，请先选择其他大知识点。";
+        return;
+      }
+      const position = nextNodePosition(
+        this.nodes.filter((item) => item.groupId === groupId),
+      );
+      if (!position) return;
+      node.groupId = groupId;
+      node.x = position.x;
+      node.y = position.y;
+    },
+    removeLink(link) {
+      this.links = this.links.filter((item) => item !== link);
     },
     removeNode(id) {
       this.nodes = this.nodes.filter((node) => node.id !== id);
@@ -434,15 +604,13 @@ export default {
       this.links.push({ source: this.source, target: this.target });
     },
     arrange() {
-      const columns = Math.min(6, Math.ceil(Math.sqrt(this.nodes.length * 2))),
-        rows = Math.ceil(this.nodes.length / columns);
-      this.nodes.forEach((node, i) => {
-        node.x = Math.round(
-          70 + (columns <= 1 ? 0 : ((i % columns) * 620) / (columns - 1)),
-        );
-        node.y = Math.round(
-          60 + (rows <= 1 ? 60 : (Math.floor(i / columns) * 170) / (rows - 1)),
-        );
+      this.arrangeGroup(this.activeGroupId);
+    },
+    arrangeGroup(groupId) {
+      const nodes = this.nodes.filter((node) => node.groupId === groupId);
+      layoutGroup(nodes).forEach((position, index) => {
+        nodes[index].x = position.x;
+        nodes[index].y = position.y;
       });
     },
     async save() {
@@ -453,12 +621,24 @@ export default {
         this.error = "请填写星图标题和每个知识点的名称。";
         return;
       }
+      if (this.groups.some((group) => !group.title.trim())) {
+        this.error = "请填写每个大知识点的名称。";
+        return;
+      }
+      if (this.groups.some((group) => this.groupCount(group.id) > 6)) {
+        this.error = "一个大知识点最多包含 6 个知识点。";
+        return;
+      }
       this.saving = true;
       try {
         await saveCourseGraph(this.course.id, {
           title: this.title.trim(),
           goal: this.goal.trim(),
           revision: this.revision,
+          groups: this.groups.map((group) => ({
+            id: group.id,
+            title: group.title.trim(),
+          })),
           nodes: this.nodes.map((node) => ({
             ...node,
             label: node.label.trim(),
@@ -475,19 +655,6 @@ export default {
         this.conflict = error.status === 409;
         this.error =
           error.details?.[0]?.message || error.message || "保存失败，请重试。";
-      } finally {
-        this.saving = false;
-      }
-    },
-    async sync() {
-      this.saving = true;
-      try {
-        const course = await syncLocalCourse(this.course);
-        await this.$router.replace(
-          "/app/courses/" + course.id + "/knowledge/edit",
-        );
-      } catch (error) {
-        this.loadError = error.message;
       } finally {
         this.saving = false;
       }
@@ -547,6 +714,43 @@ export default {
   padding: 16px;
   border-radius: 6px;
   margin-bottom: 14px;
+}
+.editor-group-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.editor-group-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid @border;
+  border-radius: 5px;
+  text-align: left;
+  span {
+    overflow-wrap: anywhere;
+  }
+  small {
+    color: @muted;
+    flex-shrink: 0;
+  }
+  &[aria-current="true"] {
+    border-color: @cyan;
+    background: fade(@cyan, 7%);
+  }
+}
+.group-editor-meta {
+  padding-bottom: 16px;
+  border-bottom: 1px solid @border;
+}
+.group-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 12px 0;
 }
 .node-editor-heading {
   color: @cyan;

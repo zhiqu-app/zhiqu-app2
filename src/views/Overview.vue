@@ -57,11 +57,9 @@
             {{ graphError }}
             <button class="text-button" @click="prepareGraph">重新加载</button>
           </p>
-          <KnowledgeGraph
-            v-else-if="graph && graph.nodes.length"
-            :title="graph.title"
-            :nodes="graph.nodes"
-            :edges="graph.edges"
+          <GroupedKnowledgeGraph
+            v-else-if="graph && graph.groups.length"
+            :graph="graph"
             :selected="selectedNodeId"
             @select="select"
           />
@@ -206,7 +204,7 @@
   </div>
 </template>
 <script>
-import KnowledgeGraph from "../components/KnowledgeGraph.vue";
+import GroupedKnowledgeGraph from "../components/GroupedKnowledgeGraph.vue";
 import CourseCard from "../components/CourseCard.vue";
 import { state, persist, notify } from "../store";
 import courseGraph from "../mixins/courseGraph";
@@ -214,7 +212,7 @@ import { loadTasks, archiveCourse } from "../services/courses";
 import { loadOverview } from "../services/questions";
 export default {
   name: "Overview",
-  components: { KnowledgeGraph, CourseCard },
+  components: { GroupedKnowledgeGraph, CourseCard },
   mixins: [courseGraph],
   data: () => ({
     state,
@@ -247,7 +245,7 @@ export default {
       const nodes = this.graph?.nodes || [];
       return nodes.some((node) => node.id === this.selected)
         ? this.selected
-        : nodes[0]?.id || "";
+        : "";
     },
     courses() {
       return state.courses.filter((c) => !c.archived).slice(0, 2);
@@ -277,20 +275,14 @@ export default {
       }
     },
     select(node) {
-      this.selected = node.id;
-      notify("已选择「" + node.label + "」，可在完整路线中查看详情。");
+      this.selected = node?.id || "";
     },
     async archive(c) {
-      if (state.mode === "account" && c._remote) {
-        try {
-          await archiveCourse(c, !c.archived);
-        } catch (error) {
-          notify(error.message);
-        }
-        return;
+      try {
+        await archiveCourse(c, !c.archived);
+      } catch (error) {
+        notify(error.message);
       }
-      c.archived = !c.archived;
-      persist();
     },
   },
   async created() {

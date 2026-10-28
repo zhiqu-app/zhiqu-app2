@@ -7,7 +7,7 @@
       </div>
       <button class="button secondary" @click="exportRecords">
         <AppIcon name="download" :size="18" />
-        {{state.mode === "account" ? "导出当前报告" : "导出学习记录"}}
+        {{ "导出当前报告" }}
       </button>
     </header>
     <div class="filter-bar panel">
@@ -27,7 +27,9 @@
       <AppIcon name="chart" :size="44" />
       <h2>先积累一次真实的练习</h2>
       <p>完成答题后，这里会展示你的正确率、用时和知识点记录。</p>
-      <router-link to="/app/practice" class="button primary">开始练习</router-link>
+      <router-link to="/app/practice" class="button primary"
+        >开始练习</router-link
+      >
     </div>
     <template v-else
       ><div class="content-with-aside">
@@ -35,8 +37,9 @@
           <div class="panel report-stats">
             <div>
               <AppIcon name="file" /><span>答对 / 作答</span>
-              <strong><AnimatedNumber :value="correct" />
-                <small>/ <AnimatedNumber :value="totalCount"/></small>
+              <strong
+                ><AnimatedNumber :value="correct" />
+                <small>/ <AnimatedNumber :value="totalCount" /></small>
               </strong>
             </div>
             <div>
@@ -73,7 +76,8 @@
                 <div
                   :style="{
                     height: Math.max(2, (day.count / maxCount) * 150) + 'px',
-                  }"/>
+                  }"
+                />
                 <span>{{ day.label }}</span>
               </div>
             </div>
@@ -128,9 +132,7 @@
             <h2>记录需要时间</h2>
             <p>
               {{
-                state.mode === "account"
-                  ? "这些数据来自账号中保存的后端作答记录。"
-                  : "这些数据来自本浏览器的示例作答。"
+                "这些数据来自账号中保存的后端作答记录。"
               }}少量题目不能代表完整的学习能力。
             </p>
           </section>
@@ -141,7 +143,6 @@
 </template>
 <script>
 import { state, notify } from "../store";
-import { questions } from "../data/demo";
 import AnimatedRing from "../components/AnimatedRing.vue";
 import { loadReport } from "../services/questions";
 export default {
@@ -157,31 +158,16 @@ export default {
   }),
   computed: {
     totalCount() {
-      return state.mode === "account"
-        ? this.summary?.total || 0
-        : this.attempts.length;
-    },
-    attempts() {
-      return state.attempts.filter(
-        (a) =>
-          this.range === "all" ||
-          Date.now() - new Date(a.date).getTime() <
-            Number(this.range) * 86400000,
-      );
+      return this.summary?.total || 0;
     },
     correct() {
-      if (state.mode === "account") return this.summary?.correct || 0;
-      return this.attempts.filter((a) => a.correct).length;
+      return this.summary?.correct || 0;
     },
     rate() {
-      if (state.mode === "account") return this.summary?.rate || 0;
-      return this.attempts.length
-        ? Math.round((this.correct / this.attempts.length) * 100)
-        : 0;
+      return this.summary?.rate || 0;
     },
     totalSeconds() {
-      if (state.mode === "account") return this.summary?.totalSeconds || 0;
-      return this.attempts.reduce((sum, a) => sum + a.seconds, 0);
+      return this.summary?.totalSeconds || 0;
     },
     minutes() {
       return Math.floor(this.totalSeconds / 60);
@@ -190,34 +176,10 @@ export default {
       return this.totalSeconds % 60;
     },
     points() {
-      if (state.mode === "account") return this.summary?.points || [];
-      return ["特征值", "特征向量"].map((name) => {
-        const ids = questions.filter((q) => q.point === name).map((q) => q.id);
-        const rows = this.attempts.filter((a) => ids.includes(a.questionId));
-        return {
-          name,
-          count: rows.length,
-          rate: rows.length
-            ? Math.round(
-                (rows.filter((a) => a.correct).length / rows.length) * 100,)
-            : 0,
-        };
-      });
+      return this.summary?.points || [];
     },
     days() {
-      if (state.mode === "account") return this.summary?.days || [];
-      return Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - 6 + i);
-        const key = date.toLocaleDateString("sv-SE");
-        return {
-          key,
-          label: date.getMonth() + 1 + "/" + date.getDate(),
-          count: this.attempts.filter(
-            (a) => new Date(a.date).toLocaleDateString("sv-SE") === key,
-          ).length,
-        };
-      });
+      return this.summary?.days || [];
     },
     maxCount() {
       return Math.max(1, ...this.days.map((d) => d.count));
@@ -274,10 +236,7 @@ export default {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download =
-        state.mode === "account"
-          ? "知序-学习报告汇总.json"
-          : "知序-学习记录.json";
+      a.download = "知序-学习报告汇总.json";
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify("学习记录已导出为 JSON 文件");

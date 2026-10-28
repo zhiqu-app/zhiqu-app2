@@ -21,14 +21,6 @@
           class="button secondary"
           >配置知识星图</router-link
         >
-        <button
-          v-else-if="state.mode === 'account'"
-          class="button secondary"
-          :disabled="syncing"
-          @click="syncCourse"
-        >
-          {{ syncing ? "正在同步…" : "同步课程并配置星图" }}
-        </button>
         <router-link
           :to="{ path: '/app/studio', query: { course: course.id } }"
           class="button primary"
@@ -39,9 +31,6 @@
     <p v-if="loadError" class="error-message" role="alert">
       {{ loadError }}
       <button class="text-button" @click="load">重新加载</button>
-    </p>
-    <p v-if="!course._remote && state.mode === 'account'" class="muted">
-      这是旧版本的本机课程。同步后可保存星图，已有本机资料会保留；需要跨设备使用的资料请重新导入。
     </p>
     <div class="content-with-aside">
       <section>
@@ -213,7 +202,6 @@ import {
   uploadMaterial,
   previewMaterial,
   deleteMaterial,
-  syncLocalCourse,
 } from "../services/courses";
 export default {
   name: "CourseDetail",
@@ -226,7 +214,6 @@ export default {
     loading: false,
     loadError: "",
     uploading: false,
-    syncing: false,
   }),
   computed: {
     course() {
@@ -257,20 +244,6 @@ export default {
         this.loading = false;
       }
     },
-    async syncCourse() {
-      if (this.syncing) return;
-      this.syncing = true;
-      try {
-        const course = await syncLocalCourse(this.course);
-        await this.$router.replace(
-          "/app/courses/" + course.id + "/knowledge/edit",
-        );
-      } catch (error) {
-        notify(error.message);
-      } finally {
-        this.syncing = false;
-      }
-    },
     async openPreview(material) {
       try {
         this.preview = await previewMaterial(material);
@@ -297,23 +270,7 @@ export default {
           continue;
         }
         try {
-          if (this.course._remote && state.mode === "account") {
-            await uploadMaterial(courseId, file);
-            added++;
-            continue;
-          }
-          const m = {
-            id: uid(),
-            courseId,
-            name: file.name,
-            type: pdf ? "PDF" : "TXT",
-            size: (file.size / 1024).toFixed(1) + " KB",
-            created: new Date().toLocaleDateString("zh-CN"),
-            temporary: pdf,
-          };
-          if (pdf) m.url = URL.createObjectURL(file);
-          else m.text = await file.text();
-          state.materials.push(m);
+          await uploadMaterial(courseId, file);
           added++;
         } catch (error) {
           notify(error.message || "读取文件失败，请重试。");
@@ -327,21 +284,13 @@ export default {
     },
     async remove() {
       const m = this.deleteTarget;
-      if (m._remote && state.mode === "account") {
-        try {
-          await deleteMaterial(m);
-          this.deleteTarget = null;
-          notify("资料已删除");
-        } catch (error) {
-          notify(error.message);
-        }
-        return;
+      try {
+        await deleteMaterial(m);
+        this.deleteTarget = null;
+        notify("资料已删除");
+      } catch (error) {
+        notify(error.message);
       }
-      if (m.url) URL.revokeObjectURL(m.url);
-      state.materials = state.materials.filter((item) => item.id !== m.id);
-      this.deleteTarget = null;
-      persist();
-      notify("资料已删除");
     },
   },
   created() {

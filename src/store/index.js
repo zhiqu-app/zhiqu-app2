@@ -1,54 +1,37 @@
 import Vue from "vue";
-import {
-  initialCourses,
-  initialMaterials,
-  initialTasks,
-  questions,
-} from "../data/demo";
 
 const KEY = "zhixu-v2-state";
 let storageKey = KEY;
 let identity = "";
-let saved = null;
-try {
-  saved = JSON.parse(localStorage.getItem(KEY));
-} catch (_) {
-  /* 使用默认数据 */
-}
-// 默认参数
-const valid =
-  saved &&
-  saved.version === 1 &&
-  Array.isArray(saved.courses) &&
-  Array.isArray(saved.materials) &&
-  Array.isArray(saved.tasks) &&
-  Array.isArray(saved.attempts);
-
-// 体验数据
 const defaults = {
-  name: "林同学",
-  major: "计算机科学",
-  grade: "大二",
+  name: "",
+  major: "",
+  grade: "",
   email: "",
   reducedMotion: false,
   reminders: true,
 };
+function preferences(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key))?.settings;
+    return typeof value?.reducedMotion === "boolean"
+      ? { reducedMotion: value.reducedMotion }
+      : {};
+  } catch (_) {
+    return {};
+  }
+}
 
-let session = false;
-
-try {
-  session = sessionStorage.getItem("zhixu-demo-session") === "yes";
-} catch (_) {}
+// 业务列表只保留后端响应的内存副本。旧浏览器课程和体验标记不再参与初始化。
 export const state = Vue.observable({
-  courses: valid ? saved.courses : initialCourses.map((c) => ({ ...c })),
-  materials: valid ? saved.materials : initialMaterials.map((m) => ({ ...m })),
-  tasks: valid ? saved.tasks : initialTasks.map((t) => ({ ...t })),
-  attempts: valid ? saved.attempts : [],
-  settings: { ...defaults, ...(valid ? saved.settings : {}) },
-  session,
-  mode: session ? "demo" : "anonymous",
+  courses: [],
+  materials: [],
+  tasks: [],
+  attempts: [],
+  settings: { ...defaults, ...preferences(KEY) },
+  session: false,
+  mode: "anonymous",
   account: null,
-  // 仅保存在内存；刷新后从账号接口恢复，不能用浏览器标记代替数据库配置。
   knowledgeGraph: null,
   knowledgeGraphs: {},
   knowledgeCourseId: "",
@@ -67,146 +50,61 @@ export function notify(message) {
     state.toast = "";
   }, 3600);
 }
+
+// 本地仅缓存界面动效偏好，不存课程、资料、任务或作答。
 export function persist() {
   try {
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        version: 1,
-        courses: state.courses,
-        // Blob URL 只在当前会话有效，远端 PDF 下次预览时重新读取。
-        materials: state.materials
-          .filter((m) => !m.temporary)
-          .map(({ url, ...material }) => material),
-        tasks: state.tasks,
-        attempts: state.attempts,
-        settings: state.settings,
+        version: 2,
+        settings: { reducedMotion: state.settings.reducedMotion },
       }),
     );
     state.storageError = false;
     return true;
   } catch (_) {
     state.storageError = true;
-    notify("浏览器存储空间不足，本次修改暂未保存。");
+    notify("浏览器暂时无法保存界面偏好，学习数据仍以服务器为准。");
     return false;
   }
-}
-export function enterDemo() {
-  switchSpace(KEY, false);
-  identity = "";
-  state.account = null;
-  state.mode = "demo";
-  state.session = true;
-  try {
-    sessionStorage.setItem("zhixu-demo-session", "yes");
-  } catch (_) {}
-}
-export function leaveDemo() {
-  state.session = false;
-  sessionStorage.removeItem("zhixu-demo-session");
-  state.mode = "anonymous";
 }
 export function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
-export function saveAttempt(questionId, choice, seconds) {
-  const q = questions.find((q) => q.id === questionId);
-  if (!q || choice < 0 || choice >= q.options.length) return;
-  state.attempts.push({
-    id: uid(),
-    questionId,
-    choice,
-    correct: choice === q.answer,
-    seconds,
-    date: new Date().toISOString(),
-  });
-  persist();
-}
+
 export function resetData() {
+  state.materials.forEach((material) => {
+    if (material.url) URL.revokeObjectURL(material.url);
+  });
+  state.courses = [];
+  state.materials = [];
+  state.tasks = [];
+  state.attempts = [];
   state.knowledgeGraph = null;
   state.knowledgeGraphs = {};
   state.knowledgeCourseId = "";
-  state.knowledgeStatus = "idle";
-  state.knowledgeError = "";
   state.coursesLoaded = false;
   state.tasksLoaded = false;
-  const prefix =
-    "zhixu-practice-draft:" +
-    state.mode +
-    ":" +
-    (state.account?.id || "demo") +
-    ":";
+  state.knowledgeStatus = "idle";
+  state.knowledgeError = "";
   try {
+    const prefix =
+      "zhixu-practice-draft:account:" + (state.account?.id || "") + ":";
     Object.keys(sessionStorage)
       .filter((key) => key.startsWith(prefix))
       .forEach((key) => sessionStorage.removeItem(key));
   } catch (_) {}
-  state.courses =
-    state.mode === "account" ? [] : initialCourses.map((c) => ({ ...c }));
-  state.materials.forEach((m) => {
-    if (m.url) URL.revokeObjectURL(m.url);
-  });
-  state.materials =
-    state.mode === "account" ? [] : initialMaterials.map((m) => ({ ...m }));
-  state.tasks =
-    state.mode === "account" ? [] : initialTasks.map((t) => ({ ...t }));
-  state.attempts = [];
-  persist();
 }
 
-// 按账号隔离前端缓存；正式业务数据以各模块读取的后端响应为准。
-function switchSpace(key, empty, profile = {}) {
-  state.knowledgeGraph = null;
-  state.knowledgeGraphs = {};
-  state.knowledgeCourseId = "";
-  state.coursesLoaded = false;
-  state.tasksLoaded = false;
-  state.knowledgeStatus = "idle";
-  state.knowledgeError = "";
-  let cached = null;
-  try {
-    cached = JSON.parse(localStorage.getItem(key));
-  } catch (_) {
-    /* 使用空空间 */
-  }
-  const usable =
-    cached &&
-    cached.version === 1 &&
-    ["courses", "materials", "tasks", "attempts"].every((name) =>
-      Array.isArray(cached[name]),
-    );
-  state.materials.forEach((m) => {
-    if (m.url) URL.revokeObjectURL(m.url);
-  });
+function switchSpace(key, profile = {}) {
+  resetData();
   storageKey = key;
-  state.courses = usable
-    ? cached.courses
-    : empty
-      ? []
-      : initialCourses.map((c) => ({ ...c }));
-  state.materials = usable
-    ? cached.materials
-    : empty
-      ? []
-      : initialMaterials.map((m) => ({ ...m }));
-  state.tasks = usable
-    ? cached.tasks
-    : empty
-      ? []
-      : initialTasks.map((t) => ({ ...t }));
-  state.attempts = usable ? cached.attempts : [];
-  state.settings = {
-    ...defaults,
-    ...(usable ? cached.settings : {}),
-    ...profile,
-  };
+  state.settings = { ...defaults, ...preferences(key), ...profile };
   state.storageError = false;
-  sessionStorage.removeItem("zhixu-practice-draft");
 }
-
 export function activateAccount(user) {
-  if (identity !== user.id)
-    switchSpace(`${KEY}:user:${user.id}`, true, user.profile);
+  if (identity !== user.id) switchSpace(`${KEY}:user:${user.id}`, user.profile);
   else Object.assign(state.settings, user.profile);
   identity = user.id;
   state.account = user;
@@ -214,9 +112,8 @@ export function activateAccount(user) {
   state.session = true;
   sessionStorage.removeItem("zhixu-demo-session");
 }
-
 export function clearAccount() {
-  switchSpace(KEY, false);
+  switchSpace(KEY);
   identity = "";
   state.account = null;
   state.mode = "anonymous";

@@ -45,13 +45,12 @@
           <h2>{{ graph.title }}</h2>
           <span class="muted small">点击节点探索</span>
         </div>
-        <KnowledgeGraph
-          v-if="nodes.length"
-          :title="graph.title"
-          :nodes="nodes"
-          :edges="graph.edges"
-          :selected="selected ? selected.id : ''"
-          @select="selectedId = $event.id"
+        <GroupedKnowledgeGraph
+          v-if="graph.groups.length"
+          :graph="graph"
+          :selected="selectedId"
+          @group="groupId = $event"
+          @select="selectedId = $event ? $event.id : ''"
         />
         <p v-else class="muted">
           这门课程还没有知识点，点击「配置课程星图」即可手动添加。
@@ -128,22 +127,23 @@
   </div>
 </template>
 <script>
-import KnowledgeGraph from "../components/KnowledgeGraph.vue";
+import GroupedKnowledgeGraph from "../components/GroupedKnowledgeGraph.vue";
 import { state } from "../store";
 import courseGraph from "../mixins/courseGraph";
 export default {
   name: "Knowledge",
-  components: { KnowledgeGraph },
+  components: { GroupedKnowledgeGraph },
   mixins: [courseGraph],
-  data: () => ({ state, selectedId: "" }),
+  data: () => ({ state, selectedId: "", groupId: "" }),
   computed: {
     nodes() {
-      return this.graph?.nodes || [];
+      return (this.graph?.nodes || []).filter(
+        (node) => node.groupId === this.groupId,
+      );
     },
     selected() {
       return (
-        this.nodes.find((node) => node.id === this.selectedId) ||
-        this.nodes[0] ||
+        (this.graph?.nodes || []).find((node) => node.id === this.selectedId) ||
         null
       );
     },
