@@ -13,6 +13,32 @@ export const questionTemplate = {
   ],
 };
 
+// 粘贴入口兼容单题和 AI 返回的完整代码块，最终仍复用文件导入的严格字段校验。
+export function parseQuestionPaste(text) {
+  if (new TextEncoder().encode(text).length > QUESTION_IMPORT_MAX_BYTES)
+    throw new Error("粘贴内容不能超过 100 KB，请分批录入。");
+  let raw = text.replace(/^\uFEFF/, "").trim();
+  if (!raw) throw new Error("请先粘贴题目 JSON。");
+  const block = raw.match(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i);
+  if (block) raw = block[1].trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_) {
+    throw new Error(
+      "JSON 格式不正确，请检查逗号、引号和括号；只粘贴 JSON 内容或完整 JSON 代码块。",
+    );
+  }
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    Object.prototype.hasOwnProperty.call(parsed, "title")
+  )
+    parsed = { questions: [parsed] };
+  return parseQuestionImport(JSON.stringify(parsed));
+}
+
 // 前端负责可读的文件反馈；字段、所有权和配额最终仍由后端校验。
 export function parseQuestionImport(text) {
   let parsed;

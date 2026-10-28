@@ -134,6 +134,7 @@
             <button class="text-button" @click="refresh">刷新题库</button>
             <button
               class="button secondary small-button"
+              :disabled="busy"
               @click="singleOpen = true"
             >
               手动新增题目
@@ -171,7 +172,25 @@
       </aside>
     </div>
     <AppModal v-if="singleOpen" title="手动新增课程题目" @close="closeSingle"
-      ><form @submit.prevent="saveSingle">
+      ><div class="question-entry-modes" role="group" aria-label="新增题目方式">
+        <button
+          type="button"
+          :aria-pressed="singleMode === 'form'"
+          :disabled="busy"
+          @click="singleMode = 'form'"
+        >
+          逐项填写
+        </button>
+        <button
+          type="button"
+          :aria-pressed="singleMode === 'json'"
+          :disabled="busy"
+          @click="singleMode = 'json'"
+        >
+          粘贴 JSON
+        </button>
+      </div>
+      <form v-if="singleMode === 'form'" @submit.prevent="saveSingle">
         <p class="muted small single-form-tip">
           按提示填写一道单选题；输入框中的示例不会自动保存。
         </p>
@@ -186,7 +205,9 @@
           placeholder="例如：TCP 提供哪一种传输服务？"
           :disabled="busy"
         />
-        <label class="field-label" for="single-options">选项（每行一个，2～6 项）</label>
+        <label class="field-label" for="single-options"
+          >选项（每行一个，2～6 项）</label
+        >
         <textarea
           id="single-options"
           v-model="single.options"
@@ -203,10 +224,12 @@
         <div
           v-if="singleOptions.length"
           class="single-options-preview"
-          aria-live="polite">
+          aria-live="polite"
+        >
           <p
             class="small"
-            :class="{ 'error-message': singleOptions.length > 6 }">
+            :class="{ 'error-message': singleOptions.length > 6 }"
+          >
             已识别 {{ singleOptions.length }} 个选项，保存时将自动编号：
           </p>
           <div v-for="(option, i) in singleOptions.slice(0, 6)" :key="i">
@@ -282,6 +305,106 @@
           </button>
         </div>
       </form>
+      <section v-else class="paste-entry">
+        <p class="muted small single-form-tip">
+          粘贴 AI 生成或自己编写的题目 JSON。支持单题对象、题目数组或 questions
+          数组，每次 1～200 题、最多 100 KB。
+        </p>
+        <label class="field-label" for="question-json">题目 JSON</label>
+        <textarea
+          id="question-json"
+          v-model="jsonText"
+          class="input paste-input"
+          rows="10"
+          :placeholder="jsonExample"
+          :disabled="busy"
+          aria-describedby="question-json-help"
+          spellcheck="false"
+        />
+        <p id="question-json-help" class="muted small single-field-help">
+          每题包含 title、options、answer、explanation、point。answer 从 0
+          开始：0=A、1=B；也可粘贴完整的 JSON 代码块。
+        </p>
+        <div class="paste-tools">
+          <button
+            type="button"
+            class="text-button"
+            :disabled="busy || !!jsonText.trim()"
+            @click="fillJsonExample"
+          >
+            填入示例
+          </button>
+          <button
+            type="button"
+            class="button secondary"
+            :disabled="busy || !jsonText.trim()"
+            @click="previewJson"
+          >
+            校验并预览
+          </button>
+        </div>
+        <p v-if="jsonError" class="error-message" role="alert">
+          {{ jsonError }}
+        </p>
+        <section
+          v-if="jsonPayload"
+          ref="jsonPreview"
+          class="paste-preview"
+          tabindex="-1"
+          aria-label="题目预览"
+        >
+          <h3>待保存 {{ jsonPayload.questions.length }} 道题</h3>
+          <p class="muted small">
+            保存到「{{ course.name }}」。仅展示前 10 题，确认后才写入题库。
+          </p>
+          <ol>
+            <li v-for="(q, i) in jsonPayload.questions.slice(0, 10)" :key="i">
+              <strong>{{ q.title }}</strong>
+              <p class="muted small">
+                知识点：{{ q.point }} · 正确答案：{{ letters[q.answer] }}
+              </p>
+              <ul class="bank-options">
+                <li
+                  v-for="(option, j) in q.options"
+                  :key="j"
+                  :class="{ 'is-correct': j === q.answer }"
+                >
+                  <b>{{ letters[j] }}.</b><span>{{ option }}</span>
+                </li>
+              </ul>
+              <p class="paste-explanation">解析：{{ q.explanation }}</p>
+            </li>
+          </ol>
+        </section>
+        <p v-if="jsonResult" class="bank-result paste-result" role="status">
+          保存完成：新增 {{ jsonResult.imported }} 题，跳过重复
+          {{ jsonResult.skipped }} 题，当前共 {{ jsonResult.total }} 题。
+        </p>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="button secondary"
+            :disabled="busy"
+            @click="closeSingle"
+          >
+            {{ jsonResult ? "完成" : "取消" }}
+          </button>
+          <button
+            type="button"
+            class="button primary"
+            :disabled="busy || !jsonPayload"
+            @click="saveJson"
+          >
+            {{
+              busy
+                ? "正在保存…"
+                : "确认保存 " +
+                  (jsonPayload ? jsonPayload.questions.length : 0) +
+                  " 道题"
+            }}
+          </button>
+        </div>
+      </section>
     </AppModal>
   </div>
 </template>
@@ -293,6 +416,7 @@ import AppModal from "../components/AppModal.vue";
 import { createSingleQuestion } from "../services/platform";
 import {
   parseQuestionImport,
+  parseQuestionPaste,
   questionTemplate,
   QUESTION_IMPORT_MAX_BYTES,
 } from "../utils/questionImport";
@@ -317,9 +441,17 @@ export default {
     selectedCourseId: "",
     singleOpen: false,
     singleError: "",
+    singleMode: "form",
+    jsonText: "",
+    jsonPayload: null,
+    jsonError: "",
+    jsonResult: null,
     single: { title: "", options: "", answer: "", point: "", explanation: "" },
   }),
   computed: {
+    jsonExample() {
+      return JSON.stringify(questionTemplate, null, 2);
+    },
     singleOptions() {
       return this.single.options
         .split(/\r?\n/)
@@ -328,6 +460,12 @@ export default {
     },
   },
   watch: {
+    jsonText() {
+      // 编辑后必须重新校验，不能将旧预览与新输入混在一起保存。
+      this.jsonPayload = null;
+      this.jsonError = "";
+      this.jsonResult = null;
+    },
     singleOptions(options) {
       if (this.single.answer !== "" && this.single.answer >= options.length)
         this.single.answer = "";
@@ -337,6 +475,49 @@ export default {
     this.load();
   },
   methods: {
+    fillJsonExample() {
+      if (this.jsonText.trim() || this.busy) return;
+      this.jsonText = this.jsonExample;
+    },
+    async previewJson() {
+      if (this.busy) return;
+      this.jsonPayload = null;
+      this.jsonError = "";
+      this.jsonResult = null;
+      try {
+        this.jsonPayload = parseQuestionPaste(this.jsonText);
+        await this.$nextTick();
+        if (this.singleOpen && !this._isDestroyed) {
+          this.$refs.jsonPreview?.scrollIntoView({
+            block: "start",
+            behavior: "auto",
+          });
+          this.$refs.jsonPreview?.focus({ preventScroll: true });
+        }
+      } catch (error) {
+        this.jsonError = error.message;
+      }
+    },
+    async saveJson() {
+      if (!this.jsonPayload || this.busy) return;
+      this.busy = true;
+      this.jsonError = "";
+      try {
+        // 保存前再次校验原输入，服务器继续校验字段、课程归属并处理重复题。
+        const body = parseQuestionPaste(this.jsonText);
+        this.jsonResult = await importQuestions(this.course.id, body);
+        this.jsonPayload = null;
+        await this.refresh();
+        notify("题目已保存到当前课程，可进入练习");
+      } catch (error) {
+        const detail = error.details?.[0];
+        this.jsonError = detail
+          ? detail.field + "：" + detail.message
+          : error.message;
+      } finally {
+        this.busy = false;
+      }
+    },
     closeSingle() {
       if (!this.busy) this.singleOpen = false;
     },
@@ -464,6 +645,88 @@ export default {
   line-height: 1.8;
   margin: 14px 0 18px;
 }
+
+/* 录入方式与草稿独立；JSON 预览沿用题库选项样式，避免代码长行撑宽手机弹窗。 */
+.question-entry-modes {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  margin-top: 20px;
+  background: @bg;
+  border: 1px solid @border;
+  border-radius: 7px;
+  button {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 4px;
+    color: @muted;
+    font-size: 13px;
+    &[aria-pressed="true"] {
+      color: @cyan;
+      background: @surface-raised;
+      box-shadow: inset 0 0 0 1px @border;
+    }
+  }
+}
+.paste-entry {
+  min-width: 0;
+}
+.paste-input {
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  min-height: 190px;
+  resize: vertical;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.paste-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 15px 0;
+}
+.paste-preview {
+  border-top: 1px solid @border;
+  padding-top: 15px;
+  margin-top: 18px;
+  > ol {
+    padding-left: 22px;
+    > li {
+      padding: 12px 0;
+      border-bottom: 1px solid @border;
+    }
+  }
+  strong {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .is-correct {
+    box-shadow: inset 2px 0 @cyan;
+  }
+  p,
+  strong {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
+.paste-explanation {
+  font-size: 12px;
+  line-height: 1.8;
+  color: @muted;
+}
+@media (max-width: 480px) {
+  .paste-input {
+    font-size: 16px;
+  }
+  .paste-entry .modal-actions {
+    flex-wrap: wrap;
+    button {
+      flex: 1;
+    }
+  }
+}
 .single-field-help {
   line-height: 1.8;
   margin: 7px 0 0;
@@ -514,7 +777,8 @@ export default {
   }
 }
 .bank-preview .bank-options,
-.bank-list .bank-options {
+.bank-list .bank-options,
+.paste-preview .bank-options {
   list-style: none;
   padding: 0;
   margin: 12px 0 0;

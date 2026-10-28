@@ -881,6 +881,9 @@ export default {
     min-height: 52px;
     max-height: 140px;
     font-size: 13px;
+    &:focus-visible{
+      outline-offset: 0px;
+    }
   }
 }
 
