@@ -14,7 +14,8 @@
         <option
           v-for="course in state.courses"
           :key="course.id"
-          :value="course.id">
+          :value="course.id"
+        >
           {{ course.name }}
         </option>
       </select>
@@ -37,43 +38,100 @@
     <div class="studio-layout">
       <section
         class="panel document-panel"
-        :class="{ 'mobile-hidden': tab !== 'document' }">
+        :class="{ 'mobile-hidden': tab !== 'document' }"
+      >
         <div class="document-toolbar">
-          <select v-model="materialId" aria-label="选择阅读资料">
+          <select
+            v-model="materialId"
+            aria-label="选择阅读资料"
+            @change="readDocument()"
+          >
             <option v-for="m in materials" :key="m.id" :value="m.id">
               {{ m.name }}
             </option>
             <option v-if="!materials.length" value="">暂无资料</option>
           </select>
-            <span class="badge">{{
+          <span class="badge">{{
             remoteCourse ? "账号课程资料" : "本机资料"
           }}</span>
+        </div>
+        <aside
+          v-if="activeSource"
+          class="source-preview"
+          aria-label="引用原文"
+          role="status"
+        >
+          <div class="source-preview-heading">
+            <strong
+              ><AppIcon name="file" :size="14" />引用原文 ·
+              {{ activeSource.name }}</strong
+            >
+            <button
+              type="button"
+              aria-label="关闭引用定位"
+              @click="clearSource"
+            >
+              ×
+            </button>
+          </div>
+          <p>{{ activeSource.excerpt || "该引用未附带原文片段。" }}</p>
+          <span>{{ sourceStatus }}</span>
+        </aside>
+        <div
+          v-if="document && document.url"
+          class="document-view-tabs"
+          aria-label="PDF 阅读方式"
+        >
+          <button
+            type="button"
+            :aria-pressed="documentView === 'original'"
+            @click="setDocumentView('original')"
+          >
+            原始 PDF
+          </button>
+          <button
+            type="button"
+            :aria-pressed="documentView === 'text'"
+            @click="setDocumentView('text')"
+          >
+            提取文字
+          </button>
+          <span v-if="sourceRange && sourceRange.page"
+            >引用位于第 {{ sourceRange.page }} 页</span
+          >
         </div>
         <div v-if="docLoading" class="empty-state" role="status">
           正在读取原始文件…
         </div>
         <div v-else-if="docError" class="empty-state">
           <p class="error-message" role="alert">{{ docError }}</p>
-          <button class="button secondary" @click="readDocument">
+          <button class="button secondary" @click="readDocument(activeSource)">
             重试读取
           </button>
         </div>
         <iframe
-          v-else-if="document && document.url"
+          v-else-if="document && document.url && documentView === 'original'"
           :src="document.url"
           title="课程 PDF 预览"
           class="studio-pdf"
         />
-        <article
-          v-else-if="document"
-          ref="document"
-          class="document-paper"
-          :class="{ 'source-highlight': highlighted }"
-        >
+        <article v-else-if="document" ref="document" class="document-paper">
           <span class="document-kicker">知序 · 课程资料</span>
           <h2>{{ document.name.replace(/\.(txt|md)$/i, "") }}</h2>
-          <div v-for="(p, i) in paragraphs" :key="i" class="paper-paragraph">
-            {{ p }}
+          <p v-if="!paragraphs.length" class="document-no-text">
+            这份资料暂无可显示的提取文字，可切换原始 PDF 查看。
+          </p>
+          <div v-for="p in paragraphs" :key="p.start" class="paper-paragraph">
+            <template v-for="(segment, index) in p.segments">
+              <mark
+                v-if="segment.highlighted"
+                :key="index"
+                class="source-highlight-text"
+                tabindex="-1"
+                >{{ segment.text }}</mark
+              >
+              <span v-else :key="index">{{ segment.text }}</span>
+            </template>
           </div>
           <div class="paper-footer">
             {{ document._remote ? "已保存到账号" : "本机资料" }} ·
@@ -97,15 +155,16 @@
       >
         <div class="panel-heading">
           <h2>课程答疑</h2>
-          <span class="badge">{{
-            remoteCourse
-              ? answerMode === "llm"
-                ? "模型答疑"
-                : answerMode === "retrieval"
-                  ? "课程资料检索"
-                  : "账号答疑"
-              : "本地检索演示"
-          }}
+          <span class="badge"
+            >{{
+              remoteCourse
+                ? answerMode === "llm"
+                  ? "模型答疑"
+                  : answerMode === "retrieval"
+                    ? "课程资料检索"
+                    : "账号答疑"
+                : "本地检索演示"
+            }}
           </span>
         </div>
         <p v-if="historyError" class="error-message" role="alert">
@@ -128,7 +187,8 @@
               :key="text"
               class="suggestion-button"
               :disabled="busy || loading || !canAsk"
-              @click="send(text)">
+              @click="send(text)"
+            >
               {{ text }}<AppIcon name="arrow" :size="16" />
             </button>
           </div>
@@ -148,7 +208,8 @@
                 v-for="(source, i) in message.sources"
                 :key="i"
                 class="source-chip"
-                @click="locate(source)">
+                @click="locate(source)"
+              >
                 <AppIcon name="file" :size="16" />{{ source.name }} · 原文片段
               </button>
             </div>
@@ -170,7 +231,8 @@
               placeholder="结合课程资料提问…"
               rows="2"
               maxlength="2000"
-              @keydown.enter.exact.prevent="send(question)"/>
+              @keydown.enter.exact.prevent="send(question)"
+            />
             <button
               v-if="busy"
               class="button secondary"
@@ -197,6 +259,8 @@
 import UserAvatar from "../components/UserAvatar.vue";
 import { state, uid, notify } from "../store";
 import { askAssistant } from "../services/assistant";
+import { locateSource, sourceParagraphs } from "../utils/sourceLocation";
+import { motionAllowed } from "../utils/motion";
 import {
   loadCourses,
   getCourse,
@@ -219,7 +283,8 @@ export default {
     messages: [],
     busy: false,
     tab: "chat",
-    highlighted: false,
+    activeSource: null,
+    documentView: "original",
     loading: false,
     loadError: "",
     docLoading: false,
@@ -249,9 +314,21 @@ export default {
         : state.mode === "demo" && this.searchable.length > 0;
     },
     paragraphs() {
-      return this.document?.text
-        ? this.document.text.split(/\n+/).filter(Boolean)
-        : [];
+      return sourceParagraphs(this.document?.text, this.sourceRange);
+    },
+    sourceRange() {
+      return this.document?.id === this.activeSource?.materialId
+        ? locateSource(this.document?.text, this.activeSource)
+        : null;
+    },
+    sourceStatus() {
+      if (this.docLoading) return "正在读取并定位引用…";
+      if (this.docError) return "资料读取失败，引用快照已保留，请重试读取。";
+      if (this.sourceRange)
+        return this.sourceRange.page
+          ? `已在提取文字中定位 · 第 ${this.sourceRange.page} 页`
+          : "已定位到原文，高亮部分为引用内容。";
+      return "无法匹配当前正文，已保留回答时的引用快照。";
     },
     suggestions() {
       const nodes = state.knowledgeGraphs[this.courseId]?.nodes;
@@ -261,9 +338,6 @@ export default {
     },
   },
   watch: {
-    materialId() {
-      this.readDocument();
-    },
     "$route.query.course"(id) {
       if (id && id !== this.courseId) {
         this.courseId = id;
@@ -278,7 +352,6 @@ export default {
     this.stop();
     ++this.loadRevision;
     ++this.docRevision;
-    clearTimeout(this.highlightTimer);
   },
   methods: {
     async load() {
@@ -301,6 +374,11 @@ export default {
     },
     async courseChanged() {
       this.stop();
+      ++this.docRevision;
+      this.activeSource = null;
+      this.documentView = "original";
+      this.docLoading = false;
+      this.docError = "";
       const revision = ++this.loadRevision;
       this.loading = true;
       this.loadError = "";
@@ -335,16 +413,21 @@ export default {
             this.historyError = error.message;
           }
         }
-        if (revision === this.loadRevision)
+        if (revision === this.loadRevision) {
           this.materialId = this.materials[0]?.id || "";
+          await this.readDocument();
+        }
       } catch (error) {
         if (revision === this.loadRevision) this.loadError = error.message;
       } finally {
         if (revision === this.loadRevision) this.loading = false;
       }
     },
-    async readDocument() {
+    async readDocument(source = null) {
+      // 引用与读取共享版本号，迟到的文件响应不能覆盖后来选择的资料或课程。
       const revision = ++this.docRevision;
+      this.activeSource = source ? { ...source } : null;
+      this.documentView = source ? "text" : "original";
       this.document = null;
       this.docError = "";
       const item = this.materials.find((m) => m.id === this.materialId);
@@ -361,6 +444,10 @@ export default {
         if (revision === this.docRevision) this.docError = error.message;
       } finally {
         if (revision === this.docRevision) this.docLoading = false;
+      }
+      if (revision === this.docRevision && !this._isDestroyed) {
+        await this.$nextTick();
+        this.focusSource();
       }
     },
     async send(text) {
@@ -420,17 +507,46 @@ export default {
       });
     },
     async locate(source) {
+      // 不依赖 materialId watcher：当前文件里的另一处引用也必须重新定位。
       if (!this.materials.some((m) => m.id === source.materialId)) {
         notify("引用资料已删除。");
         return;
       }
       this.materialId = source.materialId;
       this.tab = "document";
-      this.highlighted = true;
-      clearTimeout(this.highlightTimer);
-      this.highlightTimer = setTimeout(() => {
-        this.highlighted = false;
-      }, 1800);
+      if (
+        this.document?.id === source.materialId &&
+        !this.docLoading &&
+        !this.docError
+      ) {
+        this.activeSource = { ...source };
+        this.documentView = "text";
+        await this.$nextTick();
+        this.focusSource();
+      } else await this.readDocument(source);
+    },
+    clearSource() {
+      this.activeSource = null;
+    },
+    async setDocumentView(view) {
+      this.documentView = view;
+      await this.$nextTick();
+      if (view === "text") this.focusSource();
+    },
+    focusSource() {
+      if (
+        this._isDestroyed ||
+        this._isBeingDestroyed ||
+        this.documentView !== "text"
+      )
+        return;
+      const mark = this.$refs.document?.querySelector(".source-highlight-text");
+      if (!mark) return;
+      mark.scrollIntoView({
+        block: "center",
+        behavior: motionAllowed() ? "smooth" : "auto",
+      });
+      mark.focus({ preventScroll: true });
     },
   },
 };
@@ -453,6 +569,82 @@ export default {
   width: 210px;
 }
 
+.document-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  min-height: 0;
+}
+
+.source-preview {
+  margin: 10px 12px 0px;
+  padding: 10px 12px;
+  border: 1px solid #326780;
+  border-radius: 7px;
+  background: #0c3045;
+  flex: none;
+  p {
+    margin: 6px 0;
+    max-height: 70px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #c4e3f0;
+  }
+  > span {
+    font-size: 10px;
+    color: #82bed5;
+  }
+}
+.source-preview-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #a6def2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  button {
+    margin-left: auto;
+    padding: 0 3px;
+    line-height: 1;
+    font-size: 20px;
+    color: #9ac8dc;
+  }
+}
+.document-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px;
+  flex: none;
+  button {
+    padding: 6px 10px;
+    border: 1px solid #28516b;
+    border-radius: 5px;
+    font-size: 11px;
+    color: #86b1c8;
+    &[aria-pressed="true"] {
+      color: #b1edff;
+      border-color: #4fa8c5;
+      background: #143b50;
+    }
+  }
+  span {
+    font-size: 10px;
+    color: #83a9bd;
+  }
+}
+
 .mobile-study-tabs {
   display: none;
 }
@@ -465,6 +657,7 @@ export default {
 }
 
 .document-toolbar {
+  flex: none;
   padding: 14px 18px;
   display: flex;
   align-items: center;
@@ -473,6 +666,7 @@ export default {
 
   select {
     flex: 1;
+    min-width: 0;
     max-width: 100%;
     background: #0b2338;
     border: 1px solid #21455c;
@@ -489,6 +683,7 @@ export default {
   color: #152536;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   font-family: "SimSun", "Songti SC", serif;
   border-radius: 3px;
   font-size: 17px;
@@ -532,8 +727,14 @@ export default {
     color: #617b8e;
   }
 
-  &.source-highlight {
-    box-shadow: inset 0 0 0 4px #00cfff;
+  .source-highlight-text {
+    color: #123a50;
+    background: #b4edf5;
+    box-shadow: 0 2px 0 #32a7ba;
+    border-radius: 2px;
+    padding: 2px 0;
+    outline: none;
+    scroll-margin-block: 40px;
   }
 }
 
@@ -542,7 +743,7 @@ export default {
   height: 100%;
   flex: 1;
   border: 0;
-  min-height: 450px;
+  min-height: 0;
 }
 
 .chat-panel {
@@ -550,6 +751,7 @@ export default {
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  min-height: 0;
 
   > .panel-heading {
     padding: 17px 20px;
