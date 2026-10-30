@@ -1,29 +1,22 @@
 <template>
   <div class="navigation-feedback" :class="{ 'navigation-reduced': !allowMotion }">
     <transition name="navigation-bar">
-        <div
-        v-if="navigation.barVisible"
-        class="navigation-progress"
-        :class="{ complete: navigation.completed }"
+      <div v-if="navigation.barVisible" class="navigation-progress" :class="{ complete: navigation.completed }"
         aria-hidden="true">
-            <i />
-        </div>
+        <i />
+      </div>
     </transition>
     <transition name="loading-page" :css="allowMotion" @after-leave="finishOverlayLeave">
-      <section
-        v-if="navigation.overlayVisible"
-        class="route-loading-page"
-        :class="'loading-scope-' + navigation.overlayScope"
-        role="status"
-        aria-live="polite"
+      <section v-if="navigation.overlayVisible" class="route-loading-page"
+        :class="'loading-scope-' + navigation.overlayScope" role="status" aria-live="polite"
         :aria-label="'正在进入' + navigation.title">
         <div class="loading-page-grid" aria-hidden="true" />
         <div class="loading-page-content">
           <div class="page-orbit" aria-hidden="true">
             <span class="orbit-track orbit-one" />
-            <span class="orbit-track orbit-two" /><span class="orbit-track orbit-three"/>
+            <span class="orbit-track orbit-two" /><span class="orbit-track orbit-three" />
             <div class="page-orbit-book">
-                <AppIcon name="book" :size="50" />
+              <AppIcon name="book" :size="50" />
             </div>
             <i class="orbit-satellite" />
           </div>
@@ -87,7 +80,8 @@ export default {
   overflow: hidden;
   background: #071a2e;
   pointer-events: none;
-  > i {
+
+  >i {
     display: block;
     position: absolute;
     width: 35%;
@@ -96,7 +90,8 @@ export default {
     box-shadow: 0 0 12px @cyan;
     animation: navigation-sweep 1.15s ease-in-out infinite;
   }
-  &.complete > i {
+
+  &.complete>i {
     animation: none;
     width: 100%;
     transform: none;
@@ -104,50 +99,62 @@ export default {
     transition: width 0.16s ease;
   }
 }
+
 .navigation-bar-leave-active {
   transition: opacity 0.22s;
 }
+
 .navigation-bar-leave-to {
   opacity: 0;
 }
+
 @keyframes navigation-sweep {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(390%);
   }
 }
+
 .loading-dots {
   display: flex;
   gap: 4px;
   margin-left: 8px;
+
   i {
     width: 4px;
     height: 4px;
     border-radius: 50%;
     background: @cyan;
     animation: loading-dot 1s ease-in-out infinite;
+
     &:nth-child(2) {
       animation-delay: 0.14s;
     }
+
     &:nth-child(3) {
       animation-delay: 0.28s;
     }
   }
 }
+
 @keyframes loading-dot {
+
   0%,
   80%,
   100% {
     opacity: 0.3;
     transform: translateY(0);
   }
+
   40% {
     opacity: 1;
     transform: translateY(-4px);
   }
 }
+
 .navigation-error {
   position: fixed;
   top: 82px;
@@ -164,12 +171,15 @@ export default {
   border-radius: 8px;
   box-shadow: 0 8px 30px #0006;
   font-size: 13px;
+
   .app-icon {
     color: #ffb9ba;
   }
+
   .text-button {
     white-space: nowrap;
   }
+
   .icon-button {
     width: 28px;
     height: 28px;
@@ -183,28 +193,34 @@ export default {
     gap: 8px;
   }
 }
-.navigation-reduced .navigation-progress > i {
+
+.navigation-reduced .navigation-progress>i {
   animation: none !important;
   width: 100%;
   opacity: 0.7;
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .navigation-progress > i {
+  .navigation-progress>i {
     animation: none !important;
     width: 100%;
     opacity: 0.7;
   }
 }
+
 .navigation-feedback {
   position: static;
   z-index: auto;
 }
+
 .navigation-progress {
   z-index: 95;
 }
+
 .navigation-error {
   z-index: 96;
 }
+
 .route-loading-page {
   position: fixed;
   inset: 0;
@@ -217,12 +233,14 @@ export default {
   color: @text;
   pointer-events: auto;
   isolation: isolate;
+
   &.loading-scope-workspace {
     left: 236px;
     top: 64px;
     z-index: 30;
   }
 }
+
 .loading-page-grid {
   position: absolute;
   inset: 0;
@@ -235,22 +253,26 @@ export default {
   transform: perspective(700px) rotateX(20deg) scale(1.2);
   z-index: -1;
 }
+
 .loading-page-content {
   width: min(500px, calc(100vw - 56px));
   text-align: center;
   padding: 35px 0;
+
   h2 {
     margin: 14px 0 12px;
     font-size: clamp(23px, 2.4vw, 32px);
     font-weight: 500;
     letter-spacing: 1px;
   }
-  > p {
+
+  >p {
     color: #8bb7d8;
     font-size: 13px;
     margin-bottom: 28px;
   }
 }
+
 .loading-page-eyebrow {
   display: block;
   margin-top: 22px;
@@ -258,6 +280,7 @@ export default {
   font-size: 12px;
   letter-spacing: 3px;
 }
+
 .page-orbit {
   position: relative;
   width: 190px;
@@ -266,21 +289,25 @@ export default {
   display: grid;
   place-items: center;
 }
+
 .orbit-track {
   position: absolute;
   border: 1px solid #24658a;
   border-radius: 50%;
   inset: 0;
+
   &.orbit-one {
     transform: rotateX(62deg) rotate(-25deg);
     border-color: #1aa8d0;
   }
+
   &.orbit-two {
     inset: 15px;
     border-style: dashed;
     opacity: 0.5;
     animation: orbit-turn 18s linear infinite;
   }
+
   &.orbit-three {
     inset: 36px;
     box-shadow:
@@ -289,6 +316,7 @@ export default {
     border-color: #1978a8;
   }
 }
+
 .page-orbit-book {
   width: 94px;
   height: 94px;
@@ -303,10 +331,12 @@ export default {
     inset 0 0 26px #008dca17;
   transform: rotate(-8deg);
   animation: book-breathe 2.4s ease-in-out infinite;
+
   .app-icon {
     filter: drop-shadow(0 0 8px #00bfff60);
   }
 }
+
 .orbit-satellite {
   position: absolute;
   width: 7px;
@@ -318,6 +348,7 @@ export default {
   left: 92px;
   animation: satellite-turn 2.2s linear infinite;
 }
+
 .page-loading-line {
   width: 250px;
   max-width: 80%;
@@ -327,12 +358,14 @@ export default {
   overflow: hidden;
   margin: 0 auto;
   position: relative;
-  > i {
+
+  >i {
     position: absolute;
     width: 40%;
     height: 100%;
     background: linear-gradient(90deg, transparent, @cyan);
     animation: navigation-sweep 1.2s ease-in-out infinite;
+
     &.ready {
       animation: none;
       width: 100%;
@@ -340,6 +373,7 @@ export default {
     }
   }
 }
+
 .loading-page-state {
   display: flex;
   align-items: center;
@@ -349,69 +383,84 @@ export default {
   font-size: 11px;
   color: #72aaca;
 }
+
 .loading-page-enter-active {
   transition: opacity 0.18s ease-in-out;
 }
+
 .loading-page-leave-active {
   transition: opacity 0.3s ease-in-out;
 }
+
 .loading-page-enter,
 .loading-page-leave-to {
   opacity: 0;
 }
+
 @keyframes orbit-turn {
   to {
     transform: rotate(360deg);
   }
 }
+
 @keyframes book-breathe {
   50% {
     transform: rotate(-8deg) translateY(-5px);
     box-shadow: 0 0 60px #00baff30;
   }
 }
+
 @keyframes satellite-turn {
   from {
     transform: rotate(0) translateX(92px);
   }
+
   to {
     transform: rotate(360deg) translateX(92px);
   }
 }
+
 @media (min-width: 1200px) and (max-width: 1390px) {
   .route-loading-page.loading-scope-workspace {
     left: 215px;
   }
 }
+
 @media (max-width: 1199px) {
   .route-loading-page.loading-scope-workspace {
     left: 0;
   }
 }
+
 @media (max-width: 767px) {
   .route-loading-page.loading-scope-workspace {
     top: 58px;
   }
+
   .page-orbit {
     transform: scale(0.85);
     margin-bottom: 0;
   }
+
   .loading-page-content {
     h2 {
       font-size: 23px;
     }
-    > p {
+
+    >p {
       font-size: 12px;
     }
   }
 }
-.navigation-reduced .page-loading-line > i {
+
+.navigation-reduced .page-loading-line>i {
   animation: none !important;
   width: 100%;
   opacity: 0.6;
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .page-loading-line > i {
+  .page-loading-line>i {
     animation: none !important;
     width: 100%;
     opacity: 0.6;

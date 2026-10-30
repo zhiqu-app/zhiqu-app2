@@ -1,8 +1,8 @@
 <template>
   <main class="login-page">
     <PublicHeader>
-      <BrandLogo /><router-link to="/welcome" class="text-button"
-        >返回产品首页
+      <BrandLogo />
+      <router-link to="/welcome" class="text-button">返回产品首页
         <AppIcon name="arrow" :size="16" />
       </router-link>
     </PublicHeader>
@@ -23,90 +23,43 @@
         <p class="muted">使用已注册邮箱和密码登录你的学习空间。</p>
         <form @submit.prevent="submit">
           <label class="field-label" for="email">邮箱</label>
-          <div
-            class="input-with-icon"
-            :class="{ focused: focused === 'email' }"
-          >
+          <div class="input-with-icon" :class="{ focused: focused === 'email' }">
             <AppIcon name="mail" :size="18" />
-            <input
-              id="email"
-              ref="email"
-              v-model.trim="email"
-              type="email"
-              placeholder="输入注册邮箱"
-              required
-              :disabled="busy"
-              autocomplete="email"
-              enterkeyhint="next"
-              @focus="focused = 'email'"
-              @blur="focused = ''"
-              @keydown.enter.prevent="$refs.password.focus()"
-            />
+            <input id="email" ref="email" v-model.trim="email" type="email" placeholder="输入注册邮箱" required
+              :disabled="busy" autocomplete="email" enterkeyhint="next" @focus="focused = 'email'" @blur="focused = ''"
+              @keydown.enter.prevent="$refs.password.focus()" />
           </div>
           <label class="field-label" for="password">密码</label>
-          <div
-            class="input-with-icon"
-            :class="{ focused: focused === 'password' }"
-          >
+          <div class="input-with-icon" :class="{ focused: focused === 'password' }">
             <AppIcon name="lock" :size="18" />
-            <input
-              id="password"
-              ref="password"
-              v-model="password"
-              :type="visible ? 'text' : 'password'"
-              placeholder="输入密码"
-              autocomplete="current-password"
-              required
-              :disabled="busy"
-              enterkeyhint="go"
-              @focus="focused = 'password'"
-              @blur="focused = ''"
-            />
-            <button
-              class="icon-button"
-              type="button"
-              :aria-label="visible ? '隐藏密码' : '显示密码'"
-              :aria-pressed="String(visible)"
-              @mousedown.prevent
-              @click="visible = !visible"
-            >
+            <input id="password" ref="password" v-model="password" :type="visible ? 'text' : 'password'"
+              placeholder="输入密码" autocomplete="current-password" required :disabled="busy" enterkeyhint="go"
+              @focus="focused = 'password'" @blur="focused = ''" />
+            <button class="icon-button" type="button" :aria-label="visible ? '隐藏密码' : '显示密码'"
+              :aria-pressed="String(visible)" @mousedown.prevent @click="visible = !visible">
               <AppIcon name="eye" :size="18" />
             </button>
           </div>
           <div class="login-options">
             <span class="muted small">密码仅保留在当前输入框中</span>
-            <button
-              type="button"
-              class="text-button"
-              @click="notify('尚未提供找回密码功能。没有账号可以先注册。')"
-            >
+            <button type="button" class="text-button" @click="notify('尚未提供找回密码功能。没有账号可以先注册。')">
               需要帮助？
             </button>
           </div>
           <p v-if="error" class="error-message" role="alert">{{ error }}</p>
-          <button
-            class="button primary full-width"
-            type="submit"
-            :disabled="busy"
-          >
+          <button class="button primary full-width" type="submit" :disabled="busy">
             {{ busy ? "正在验证账号…" : "登录学习空间" }}
             <AppIcon name="arrow" :size="18" />
           </button>
         </form>
         <p class="login-note">
-          <button
-            class="text-button"
-            type="button"
-            :disabled="busy"
-            @click="onlineExperience"
-          >
+          <button class="text-button" type="button" :disabled="busy" @click="onlineExperience">
             打开在线示例空间（后端默认数据）
           </button>
         </p>
-        <p class="login-note">
-          还没有账号？<router-link to="/register" class="text-button"
-            >使用邮箱注册</router-link
-          >
+        <p class="login-note"> 
+          还没有账号？
+          <router-link to="/register" class="text-button">使用邮箱注册</router-link>
         </p>
       </section>
     </div>
@@ -222,7 +175,7 @@ export default {
     font-size: 33px;
   }
 
-  > p {
+  >p {
     color: #9cc7e7;
     letter-spacing: 3px;
   }
@@ -262,7 +215,7 @@ export default {
     margin-bottom: 9px;
   }
 
-  > .muted {
+  >.muted {
     font-size: 12px;
   }
 
@@ -352,7 +305,7 @@ export default {
       margin-top: 15px;
     }
 
-    > p {
+    >p {
       font-size: 12px;
       letter-spacing: 1px;
     }

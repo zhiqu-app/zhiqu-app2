@@ -2,40 +2,21 @@
   <div>
     <header class="page-heading">
       <div>
-        <router-link
-          :to="'/app/courses/' + $route.params.id"
-          class="text-button"
-          >返回课程</router-link
-        >
+        <router-link :to="'/app/courses/' + $route.params.id" class="text-button">返回课程</router-link>
         <h1>配置课程题库</h1>
         <p>
           {{ course ? course.name : "正在读取课程" }} · 导入自己的单选题和解析
         </p>
       </div>
-      <router-link
-        v-if="course"
-        :to="{ path: '/app/practice', query: { course: course.id } }"
-        class="button primary"
-        >开始练习</router-link
-      >
+      <router-link v-if="course" :to="{ path: '/app/practice', query: { course: course.id } }"
+        class="button primary">开始练习</router-link>
     </header>
-    <label v-if="course" class="bank-course-label"
-      >题库所属课程<select
-        v-model="selectedCourseId"
-        class="input"
-        aria-label="题库所属课程"
-        :disabled="busy"
-        @change="changeCourse"
-      >
-        <option
-          v-for="item in state.courses.filter((c) => c._remote)"
-          :key="item.id"
-          :value="item.id"
-        >
+    <label v-if="course" class="bank-course-label">题库所属课程<select v-model="selectedCourseId" class="input"
+        aria-label="题库所属课程" :disabled="busy" @change="changeCourse">
+        <option v-for="item in state.courses.filter((c) => c._remote)" :key="item.id" :value="item.id">
           {{ item.name }}
         </option>
-      </select></label
-    >
+      </select></label>
     <section v-if="loading" class="panel bank-status" role="status">
       正在读取课程题库…
     </section>
@@ -43,21 +24,13 @@
       <p class="error-message" role="alert">{{ loadError }}</p>
       <button class="button secondary" @click="load">重新加载</button>
     </section>
-    <section
-      v-else-if="!course || !course._remote || state.mode !== 'account'"
-      class="panel bank-status"
-    >
+    <section v-else-if="!course || !course._remote || state.mode !== 'account'" class="panel bank-status">
       <h2>先把课程保存到账号</h2>
       <p>题库保存在后端对应课程下，请返回课程列表重新读取课程。</p>
-      <router-link
-        :to="
-          state.mode === 'account'
-            ? '/app/courses/' + $route.params.id
-            : '/login'
-        "
-        class="button primary"
-        >{{ "返回课程同步" }}</router-link
-      >
+      <router-link :to="state.mode === 'account'
+        ? '/app/courses/' + $route.params.id
+        : '/login'
+        " class="button primary">{{ "返回课程同步" }}</router-link>
     </section>
     <div v-else class="content-with-aside">
       <section>
@@ -67,17 +40,10 @@
             每次 1～200 题，文件不超过 100 KB。导入只追加，完整重复题目会跳过。
           </p>
           <div class="button-row">
-            <label class="button primary bank-upload"
-              >选择 JSON 文件<input
-                type="file"
-                accept=".json,application/json"
-                :disabled="busy"
-                @change="readFile" /></label
-            ><button
-              class="button secondary"
-              :disabled="busy"
-              @click="downloadTemplate"
-            >
+            <label class="button primary bank-upload">选择 JSON 文件
+              <input type="file" accept=".json,application/json" :disabled="busy" @change="readFile" />
+            </label>
+            <button class="button secondary" :disabled="busy" @click="downloadTemplate">
               下载 JSON 模板
             </button>
           </div>
@@ -94,10 +60,7 @@
             <ol>
               <li v-for="(q, i) in payload.questions.slice(0, 10)" :key="i">
                 <strong>{{ q.title }}</strong>
-                <span
-                  >{{ q.point }} · {{ q.options.length }} 个选项 · 正确选项
-                  {{ letters[q.answer] }}</span
-                >
+                <span>{{ q.point }} · {{ q.options.length }} 个选项 · 正确选项 {{ letters[q.answer] }}</span>
                 <ul class="bank-options">
                   <li v-for="(option, j) in q.options" :key="j">
                     <b>{{ letters[j] }}.</b><span>{{ option }}</span>
@@ -105,11 +68,7 @@
                 </ul>
               </li>
             </ol>
-            <button
-              class="button primary"
-              :disabled="busy || exampleOnly"
-              @click="confirmImport"
-            >
+            <button class="button primary" :disabled="busy || exampleOnly" @click="confirmImport">
               {{ busy ? "正在导入…" : "确认导入题库" }}
             </button>
           </section>
@@ -120,8 +79,7 @@
             {{ importError }}
           </p>
           <p v-if="result" class="bank-result" role="status">
-            导入完成：新增 {{ result.imported }} 题，跳过重复
-            {{ result.skipped }} 题，当前共 {{ result.total }} 题。
+            导入完成：新增 {{ result.imported }} 题，跳过重复 {{ result.skipped }} 题，当前共 {{ result.total }} 题。
           </p>
         </article>
         <article class="panel bank-list">
@@ -130,11 +88,7 @@
               已有题目 <span class="muted">{{ questions.length }}</span>
             </h2>
             <button class="text-button" @click="refresh">刷新题库</button>
-            <button
-              class="button secondary small-button"
-              :disabled="busy"
-              @click="singleOpen = true"
-            >
+            <button class="button secondary small-button" :disabled="busy" @click="singleOpen = true">
               手动新增题目
             </button>
           </div>
@@ -143,8 +97,7 @@
           </p>
           <ol>
             <li v-for="q in questions" :key="q.id">
-              <strong>{{ q.title }}</strong
-              ><span>{{ q.point }} · {{ q.options.length }} 个选项</span>
+              <strong>{{ q.title }}</strong><span>{{ q.point }} · {{ q.options.length }} 个选项</span>
               <ul class="bank-options">
                 <li v-for="(option, j) in q.options" :key="j">
                   <b>{{ letters[j] }}.</b><span>{{ option }}</span>
@@ -169,22 +122,12 @@
         </section>
       </aside>
     </div>
-    <AppModal v-if="singleOpen" title="手动新增课程题目" @close="closeSingle"
-      ><div class="question-entry-modes" role="group" aria-label="新增题目方式">
-        <button
-          type="button"
-          :aria-pressed="singleMode === 'form'"
-          :disabled="busy"
-          @click="singleMode = 'form'"
-        >
+    <AppModal v-if="singleOpen" title="手动新增课程题目" @close="closeSingle">
+      <div class="question-entry-modes" role="group" aria-label="新增题目方式">
+        <button type="button" :aria-pressed="singleMode === 'form'" :disabled="busy" @click="singleMode = 'form'">
           逐项填写
         </button>
-        <button
-          type="button"
-          :aria-pressed="singleMode === 'json'"
-          :disabled="busy"
-          @click="singleMode = 'json'"
-        >
+        <button type="button" :aria-pressed="singleMode === 'json'" :disabled="busy" @click="singleMode = 'json'">
           粘贴 JSON
         </button>
       </div>
@@ -193,63 +136,29 @@
           按提示填写一道单选题；输入框中的示例不会自动保存。
         </p>
         <label class="field-label" for="single-title">题干</label>
-        <textarea
-          id="single-title"
-          v-model="single.title"
-          class="input"
-          required
-          maxlength="500"
-          rows="2"
-          placeholder="例如：TCP 提供哪一种传输服务？"
-          :disabled="busy"
-        />
-        <label class="field-label" for="single-options"
-          >选项（每行一个，2～6 项）</label
-        >
-        <textarea
-          id="single-options"
-          v-model="single.options"
-          class="input"
-          required
-          rows="5"
-          :placeholder="'可靠的字节流传输\n不可靠的数据报传输'"
-          aria-describedby="single-options-help"
-          :disabled="busy"
-        />
+        <textarea id="single-title" v-model="single.title" class="input" required maxlength="500" rows="2"
+          placeholder="例如：TCP 提供哪一种传输服务？" :disabled="busy" />
+        <label class="field-label" for="single-options">选项（每行一个，2～6 项）</label>
+        <textarea id="single-options" v-model="single.options" class="input" required rows="5"
+          :placeholder="'可靠的字节流传输\n不可靠的数据报传输'" aria-describedby="single-options-help" :disabled="busy" />
         <p id="single-options-help" class="muted small single-field-help">
           每行填写一个选项，无需输入 A、B 或序号。
         </p>
-        <div
-          v-if="singleOptions.length"
-          class="single-options-preview"
-          aria-live="polite"
-        >
-          <p
-            class="small"
-            :class="{ 'error-message': singleOptions.length > 6 }"
-          >
+        <div v-if="singleOptions.length" class="single-options-preview" aria-live="polite">
+          <p class="small" :class="{ 'error-message': singleOptions.length > 6 }">
             已识别 {{ singleOptions.length }} 个选项，保存时将自动编号：
           </p>
           <div v-for="(option, i) in singleOptions.slice(0, 6)" :key="i">
-            <b>{{ letters[i] }}.</b><span>{{ option }}</span>
+            <b>{{ letters[i] }}.</b>
+            <span>{{ option }}</span>
           </div>
         </div>
         <label class="field-label" for="single-answer">正确选项</label>
-        <select
-          id="single-answer"
-          v-model.number="single.answer"
-          class="input"
-          required
-          :disabled="
-            busy || singleOptions.length < 2 || singleOptions.length > 6
-          "
-          aria-describedby="single-answer-help"
-        >
+        <select id="single-answer" v-model.number="single.answer" class="input" required :disabled="busy || singleOptions.length < 2 || singleOptions.length > 6
+          " aria-describedby="single-answer-help">
           <option value="" disabled>
             {{
-              singleOptions.length < 2 ? "先填写至少两个选项" : "请选择正确选项"
-            }}
-          </option>
+              singleOptions.length < 2 ? "先填写至少两个选项" : "请选择正确选项" }} </option>
           <option v-for="(option, i) in singleOptions" :key="i" :value="i">
             {{ letters[i] }}. {{ option }}
           </option>
@@ -258,47 +167,23 @@
           填写选项后，从这里选择正确答案，例如 A. 可靠的字节流传输。
         </p>
         <label class="field-label" for="single-point">知识点</label>
-        <input
-          id="single-point"
-          v-model="single.point"
-          class="input"
-          required
-          maxlength="80"
-          placeholder="例如：TCP 可靠传输"
-          :disabled="busy"
-        />
+        <input id="single-point" v-model="single.point" class="input" required maxlength="80" placeholder="例如：TCP 可靠传输"
+          :disabled="busy" />
         <label class="field-label" for="single-explanation">答案解析</label>
-        <textarea
-          id="single-explanation"
-          v-model="single.explanation"
-          class="input"
-          required
-          maxlength="5000"
-          rows="3"
-          placeholder="例如：TCP 通过序号、确认和重传等机制，提供可靠的字节流传输服务。"
-          :disabled="busy"
-        />
+        <textarea id="single-explanation" v-model="single.explanation" class="input" required maxlength="5000" rows="3"
+          placeholder="例如：TCP 通过序号、确认和重传等机制，提供可靠的字节流传输服务。" :disabled="busy" />
         <p v-if="singleError" class="error-message" role="alert">
           {{ singleError }}
         </p>
         <div class="modal-actions">
-          <button
-            class="button secondary"
-            type="button"
-            :disabled="busy"
-            @click="closeSingle"
-          >
+          <button class="button secondary" type="button" :disabled="busy" @click="closeSingle">
             取消
           </button>
-          <button
-            class="button primary"
-            :disabled="
-              busy ||
-              singleOptions.length < 2 ||
-              singleOptions.length > 6 ||
-              single.answer === ''
-            "
-          >
+          <button class="button primary" :disabled="busy ||
+            singleOptions.length < 2 ||
+            singleOptions.length > 6 ||
+            single.answer === ''
+            ">
             保存题目
           </button>
         </div>
@@ -309,48 +194,24 @@
           数组，每次 1～200 题、最多 100 KB。
         </p>
         <label class="field-label" for="question-json">题目 JSON</label>
-        <textarea
-          id="question-json"
-          v-model="jsonText"
-          class="input paste-input"
-          rows="10"
-          :placeholder="jsonExample"
-          :disabled="busy"
-          aria-describedby="question-json-help"
-          spellcheck="false"
-        />
+        <textarea id="question-json" v-model="jsonText" class="input paste-input" rows="10" :placeholder="jsonExample"
+          :disabled="busy" aria-describedby="question-json-help" spellcheck="false" />
         <p id="question-json-help" class="muted small single-field-help">
           每题包含 title、options、answer、explanation、point。answer 从 0
           开始：0=A、1=B；也可粘贴完整的 JSON 代码块。
         </p>
         <div class="paste-tools">
-          <button
-            type="button"
-            class="text-button"
-            :disabled="busy || !!jsonText.trim()"
-            @click="fillJsonExample"
-          >
+          <button type="button" class="text-button" :disabled="busy || !!jsonText.trim()" @click="fillJsonExample">
             填入示例
           </button>
-          <button
-            type="button"
-            class="button secondary"
-            :disabled="busy || !jsonText.trim()"
-            @click="previewJson"
-          >
+          <button type="button" class="button secondary" :disabled="busy || !jsonText.trim()" @click="previewJson">
             校验并预览
           </button>
         </div>
         <p v-if="jsonError" class="error-message" role="alert">
           {{ jsonError }}
         </p>
-        <section
-          v-if="jsonPayload"
-          ref="jsonPreview"
-          class="paste-preview"
-          tabindex="-1"
-          aria-label="题目预览"
-        >
+        <section v-if="jsonPayload" ref="jsonPreview" class="paste-preview" tabindex="-1" aria-label="题目预览">
           <h3>待保存 {{ jsonPayload.questions.length }} 道题</h3>
           <p class="muted small">
             保存到「{{ course.name }}」。仅展示前 10 题，确认后才写入题库。
@@ -362,11 +223,7 @@
                 知识点：{{ q.point }} · 正确答案：{{ letters[q.answer] }}
               </p>
               <ul class="bank-options">
-                <li
-                  v-for="(option, j) in q.options"
-                  :key="j"
-                  :class="{ 'is-correct': j === q.answer }"
-                >
+                <li v-for="(option, j) in q.options" :key="j" :class="{ 'is-correct': j === q.answer }">
                   <b>{{ letters[j] }}.</b><span>{{ option }}</span>
                 </li>
               </ul>
@@ -379,26 +236,16 @@
           {{ jsonResult.skipped }} 题，当前共 {{ jsonResult.total }} 题。
         </p>
         <div class="modal-actions">
-          <button
-            type="button"
-            class="button secondary"
-            :disabled="busy"
-            @click="closeSingle"
-          >
+          <button type="button" class="button secondary" :disabled="busy" @click="closeSingle">
             {{ jsonResult ? "完成" : "取消" }}
           </button>
-          <button
-            type="button"
-            class="button primary"
-            :disabled="busy || !jsonPayload"
-            @click="saveJson"
-          >
+          <button type="button" class="button primary" :disabled="busy || !jsonPayload" @click="saveJson">
             {{
               busy
                 ? "正在保存…"
                 : "确认保存 " +
-                  (jsonPayload ? jsonPayload.questions.length : 0) +
-                  " 道题"
+                (jsonPayload ? jsonPayload.questions.length : 0) +
+                " 道题"
             }}
           </button>
         </div>
@@ -653,12 +500,14 @@ export default {
   background: @bg;
   border: 1px solid @border;
   border-radius: 7px;
+
   button {
     flex: 1;
     padding: 10px 12px;
     border-radius: 4px;
     color: @muted;
     font-size: 13px;
+
     &[aria-pressed="true"] {
       color: @cyan;
       background: @surface-raised;
@@ -666,9 +515,11 @@ export default {
     }
   }
 }
+
 .paste-entry {
   min-width: 0;
 }
+
 .paste-input {
   font-family: Consolas, monospace;
   font-size: 13px;
@@ -678,6 +529,7 @@ export default {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
 .paste-tools {
   display: flex;
   justify-content: space-between;
@@ -685,60 +537,74 @@ export default {
   gap: 12px;
   margin: 15px 0;
 }
+
 .paste-preview {
   border-top: 1px solid @border;
   padding-top: 15px;
   margin-top: 18px;
-  > ol {
+
+  >ol {
     padding-left: 22px;
-    > li {
+
+    >li {
       padding: 12px 0;
       border-bottom: 1px solid @border;
     }
   }
+
   strong {
     font-size: 14px;
     line-height: 1.8;
   }
+
   .is-correct {
     box-shadow: inset 2px 0 @cyan;
   }
+
   p,
   strong {
     overflow-wrap: anywhere;
     white-space: pre-wrap;
   }
 }
+
 .paste-explanation {
   font-size: 12px;
   line-height: 1.8;
   color: @muted;
 }
+
 @media (max-width: 480px) {
   .paste-input {
     font-size: 16px;
   }
+
   .paste-entry .modal-actions {
     flex-wrap: wrap;
+
     button {
       flex: 1;
     }
   }
 }
+
 .single-field-help {
   line-height: 1.8;
   margin: 7px 0 0;
 }
+
 .single-options-preview {
   margin: 12px 0 18px;
   padding: 12px;
   background: @surface-raised;
   border: 1px solid @border;
   border-radius: 6px;
+
   p {
     margin: 0 0 8px;
     color: @muted;
   }
+
   div {
     display: flex;
     gap: 10px;
@@ -747,11 +613,13 @@ export default {
     line-height: 1.7;
     overflow-wrap: anywhere;
   }
+
   b {
     color: @cyan;
     flex-shrink: 0;
   }
 }
+
 #single-title,
 #single-options,
 #single-point,
@@ -761,12 +629,14 @@ export default {
     opacity: 0.75;
   }
 }
+
 .bank-course-label {
   display: flex;
   align-items: center;
   gap: 14px;
   margin-bottom: 20px;
   color: @muted;
+
   select {
     width: auto;
     max-width: 70%;
@@ -774,12 +644,14 @@ export default {
     color: @text;
   }
 }
+
 .bank-preview .bank-options,
 .bank-list .bank-options,
 .paste-preview .bank-options {
   list-style: none;
   padding: 0;
   margin: 12px 0 0;
+
   li {
     padding: 8px 12px;
     border: 0;
@@ -791,10 +663,12 @@ export default {
     font-size: 13px;
     line-height: 1.8;
   }
+
   b {
     color: @cyan;
     flex-shrink: 0;
   }
+
   span {
     display: inline;
     font-size: 13px;
@@ -802,18 +676,22 @@ export default {
     margin: 0;
   }
 }
+
 /* 课程题库配置：导入确认与已存题目均限定在当前课程。 */
 .bank-status,
 .bank-import,
 .bank-list {
   padding: 26px;
 }
+
 .bank-import {
   margin-bottom: 20px;
 }
+
 .bank-upload {
   position: relative;
   cursor: pointer;
+
   input {
     position: absolute;
     width: 1px;
@@ -821,24 +699,29 @@ export default {
     opacity: 0;
   }
 }
+
 .bank-preview {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid @border;
 }
+
 .bank-preview ol,
 .bank-list ol {
   padding-left: 22px;
+
   li {
     padding: 14px 0;
     border-bottom: 1px solid @border;
     overflow-wrap: anywhere;
   }
+
   strong {
     display: block;
     font-size: 14px;
     line-height: 1.8;
   }
+
   span {
     display: block;
     margin-top: 8px;
@@ -846,6 +729,7 @@ export default {
     font-size: 12px;
   }
 }
+
 .bank-result {
   padding: 16px;
   border: 1px solid @cyan;
@@ -853,15 +737,19 @@ export default {
   color: @cyan;
   margin-top: 20px;
 }
+
 .bank-preview .button {
   margin-top: 20px;
 }
+
 .right-rail p {
   line-height: 1.9;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+
 @media (max-width: 480px) {
+
   .bank-status,
   .bank-import,
   .bank-list {

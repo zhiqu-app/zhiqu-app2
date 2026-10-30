@@ -1,29 +1,13 @@
 <template>
   <div class="intro-slide" @touchstart.stop @touchend.stop>
-    <div
-      ref="track"
-      class="intro-slide-track"
-      :class="{ 'is-dragging': dragging }"
+    <div ref="track" class="intro-slide-track" :class="{ 'is-dragging': dragging }"
       :data-progress="Math.round(progress * 100)">
-      <div
-        class="intro-slide-fill"
-        :style="{ width: `${progress * 100}%` }"
-        aria-hidden="true"/>
+      <div class="intro-slide-fill" :style="{ width: `${progress * 100}%` }" aria-hidden="true" />
       <span class="intro-slide-label" :style="{ opacity: 1 - progress }">向右滑动，进入知序</span>
       <span class="intro-slide-destination" aria-hidden="true">»</span>
-      <button
-        ref="thumb"
-        class="intro-slide-thumb"
-        type="button"
-        aria-label="进入知序"
-        :style="{ transform: `translateX(${offset}px)` }"
-        @pointerdown="start"
-        @pointermove="move"
-        @pointerup="end"
-        @pointercancel="cancel"
-        @lostpointercapture="cancel"
-        @click="click"
-      >
+      <button ref="thumb" class="intro-slide-thumb" type="button" aria-label="进入知序"
+        :style="{ transform: `translateX(${offset}px)` }" @pointerdown="start" @pointermove="move" @pointerup="end"
+        @pointercancel="cancel" @lostpointercapture="cancel" @click="click">
         <AppIcon name="arrow" :size="22" />
       </button>
     </div>
@@ -133,6 +117,7 @@ export default {
   width: min(286px, calc(100vw - 48px));
   text-align: center;
 }
+
 .intro-slide-track {
   position: relative;
   height: 58px;
@@ -142,6 +127,7 @@ export default {
   overflow: hidden;
   user-select: none;
 }
+
 .intro-slide-label {
   position: absolute;
   inset: 0 25px 0 48px;
@@ -152,12 +138,14 @@ export default {
   color: #b7d6e5;
   pointer-events: none;
 }
+
 .intro-slide-fill {
   position: absolute;
   inset: 0 auto 0 0;
   background: linear-gradient(90deg, #1e6575, #3594a6);
   pointer-events: none;
 }
+
 .intro-slide-destination {
   position: absolute;
   right: 16px;
@@ -165,6 +153,7 @@ export default {
   font-size: 20px;
   color: #5c9aaf;
 }
+
 .intro-slide-thumb {
   position: absolute;
   top: 6px;
@@ -179,14 +168,17 @@ export default {
   cursor: grab;
   touch-action: none;
   box-shadow: 0 0 22px #5ed5e526;
+
   &:focus-visible {
     outline: 2px solid #e5faff;
     outline-offset: -4px;
   }
 }
+
 .is-dragging .intro-slide-thumb {
   cursor: grabbing;
 }
+
 .intro-slide-hint {
   display: block;
   margin-top: 10px;
@@ -194,14 +186,17 @@ export default {
   font-size: 9px;
   letter-spacing: 0.5px;
 }
+
 @media (max-height: 560px) and (min-width: 600px) {
   .intro-slide-track {
     height: 52px;
   }
+
   .intro-slide-thumb {
     width: 38px;
     height: 38px;
   }
+
   .intro-slide-hint {
     font-size: 8px;
   }

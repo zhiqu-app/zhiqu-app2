@@ -1,15 +1,10 @@
 <template>
-  <section
-    class="product-intro"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="intro-heading"
-    @keydown.esc.prevent="$emit('enter', true)"
-    @keydown.tab="trap"
-  >
+  <section class="product-intro" role="dialog" aria-modal="true" aria-labelledby="intro-heading"
+    @keydown.esc.prevent="$emit('enter', true)" @keydown.tab="trap">
     <header class="intro-header">
       <BrandLogo /><button class="intro-skip" @click="$emit('enter', true)">
-        跳过开场<AppIcon name="arrow" :size="16" />
+        跳过开场
+        <AppIcon name="arrow" :size="16" />
       </button>
     </header>
     <div class="intro-copy">
@@ -21,19 +16,21 @@
       <IntroSlideButton ref="enter" @complete="$emit('enter', false)" />
       <p class="intro-gesture"><span />向下滚动，展开学习空间</p>
       <div class="intro-status" role="status">
-        <i :class="{ failed: failed.length }" /><span>{{
-          failed.length
-            ? "配图暂不可用，仍可进入"
-            : loading
-              ? "正在准备画面…"
-              : "已准备好，等你探索"
-        }}</span
-        ><button v-if="failed.length" @click="load">重试配图</button>
+        <i :class="{ failed: failed.length }" />
+        <span>
+          {{
+            failed.length
+              ? "配图暂不可用，仍可进入"
+              : loading
+                ? "正在准备画面…"
+                : "已准备好，等你探索"
+          }}
+        </span>
+        <button v-if="failed.length" @click="load">重试配图</button>
       </div>
     </div>
     <footer class="intro-footer">
-      <span>知序 · 从理解到掌握</span
-      ><button @click="$emit('motion')">
+      <span>知序 · 从理解到掌握</span><button @click="$emit('motion')">
         {{ reduced ? "已减少动态效果" : "减少动态效果" }}
       </button>
     </footer>
@@ -125,8 +122,8 @@ export default {
     },
     trap(e) {
       const list = [
-          ...this.$el.querySelectorAll("a[href],button:not(:disabled)"),
-        ],
+        ...this.$el.querySelectorAll("a[href],button:not(:disabled)"),
+      ],
         first = list[0],
         last = list.at(-1);
       if (e.shiftKey && document.activeElement === first) {
@@ -142,6 +139,7 @@ export default {
 </script>
 <style lang="less" scoped>
 @import "../../styles/tokens.less";
+
 .product-intro {
   position: fixed;
   inset: 0;
@@ -151,6 +149,7 @@ export default {
   pointer-events: none;
   overflow: hidden;
 }
+
 .intro-header {
   pointer-events: auto;
   position: absolute;
@@ -162,6 +161,7 @@ export default {
   justify-content: space-between;
   z-index: 5;
 }
+
 .intro-skip {
   display: flex;
   align-items: center;
@@ -170,6 +170,7 @@ export default {
   font-size: 12px;
   padding: 12px;
 }
+
 .intro-copy {
   position: absolute;
   top: 16%;
@@ -178,6 +179,7 @@ export default {
   text-align: center;
   z-index: 2;
   pointer-events: none;
+
   h1 {
     font-size: clamp(32px, 4.1vw, 58px);
     font-weight: 500;
@@ -186,6 +188,7 @@ export default {
     margin: 0 0 15px;
   }
 }
+
 .intro-overline {
   display: flex;
   align-items: center;
@@ -195,6 +198,7 @@ export default {
   color: #88b4cf;
   letter-spacing: 2px;
   margin-bottom: 22px;
+
   i {
     width: 4px;
     height: 4px;
@@ -203,10 +207,12 @@ export default {
     box-shadow: 0 0 16px @cyan;
   }
 }
+
 .intro-description {
   font-size: 13px;
   color: #87a9bf;
 }
+
 .intro-bottom {
   pointer-events: auto;
   position: absolute;
@@ -218,6 +224,7 @@ export default {
   flex-direction: column;
   z-index: 80;
 }
+
 .intro-gesture {
   display: flex;
   gap: 10px;
@@ -226,12 +233,14 @@ export default {
   letter-spacing: 1px;
   color: #93b5cc;
   margin: 15px 0 12px;
+
   span {
     height: 16px;
     width: 1px;
     background: linear-gradient(transparent, @cyan);
   }
 }
+
 .intro-status {
   font-size: 10px;
   color: #668ca6;
@@ -239,21 +248,25 @@ export default {
   align-items: center;
   gap: 7px;
   min-height: 20px;
+
   i {
     height: 4px;
     width: 4px;
     background: #549b9e;
     border-radius: 50%;
+
     &.failed {
       background: @amber;
     }
   }
+
   button {
     font-size: 10px;
     color: @cyan;
     text-decoration: underline;
   }
 }
+
 .intro-footer {
   pointer-events: auto;
   position: absolute;
@@ -265,60 +278,76 @@ export default {
   font-size: 10px;
   letter-spacing: 1px;
   color: #658aa4;
+
   button {
     font-size: 10px;
   }
 }
+
 @media (max-width: 767px) {
   .intro-header {
     top: 18px;
+
     ::v-deep .brand strong {
       font-size: 21px;
     }
+
     ::v-deep .brand svg {
       width: 38px;
     }
   }
+
   .intro-copy {
     top: 18%;
+
     h1 {
       font-size: 32px;
       letter-spacing: -0.5px;
     }
   }
+
   .intro-overline {
     font-size: 9px;
     letter-spacing: 1px;
     margin-bottom: 18px;
   }
+
   .intro-description {
     font-size: 11px;
   }
+
   .intro-bottom {
     bottom: 11%;
   }
+
   .intro-footer {
     bottom: 20px;
     font-size: 8px;
+
     button {
       font-size: 9px;
     }
   }
 }
+
 @media (max-height: 700px) and (min-width: 768px) {
   .intro-copy {
     top: 14%;
+
     h1 {
       font-size: 37px;
     }
+
     .intro-overline {
       margin-bottom: 10px;
     }
   }
+
   .intro-bottom {
     bottom: 8%;
   }
 }
+
 @media (max-height: 560px) and (min-width: 600px) {
   .intro-copy {
     top: 22%;
@@ -326,31 +355,37 @@ export default {
     right: auto;
     width: 44%;
     text-align: left;
+
     h1 {
       font-size: 32px;
       line-height: 1.35;
       letter-spacing: -1px;
     }
   }
+
   .intro-overline {
     justify-content: flex-start;
     font-size: 8px;
     letter-spacing: 0.5px;
     margin-bottom: 13px;
   }
+
   .intro-description {
     font-size: 10px;
   }
+
   .intro-bottom {
     left: 6%;
     right: auto;
     bottom: 16%;
     align-items: flex-start;
   }
+
   .intro-gesture,
   .intro-status {
     display: none;
   }
+
   .intro-footer {
     bottom: 15px;
   }

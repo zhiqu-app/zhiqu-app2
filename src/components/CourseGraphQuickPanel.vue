@@ -3,42 +3,27 @@
     <section class="panel quick-graph">
       <div class="panel-heading">
         <h2>课程知识点</h2>
-        <router-link
-          :to="'/app/courses/' + course.id + '/knowledge/edit'"
-          class="text-button"
-          >完整编辑</router-link
-        >
+        <router-link :to="'/app/courses/' + course.id + '/knowledge/edit'" class="text-button">完整编辑</router-link>
       </div>
       <p v-if="error" class="error-message" role="alert">
         {{ error }} <button class="text-button" @click="load">重新读取</button>
       </p>
-      <KnowledgeGraph
-        v-if="graph && graph.nodes.length"
-        :title="course.name + '知识点关系'"
-        :nodes="graph.nodes"
-        :edges="graph.edges"
-      />
+      <KnowledgeGraph v-if="graph && graph.nodes.length" :title="course.name + '知识点关系'" :nodes="graph.nodes"
+        :edges="graph.edges" />
       <p v-else-if="!loading" class="muted">
         还没有知识点，可先添加一项，再逐步连接。
       </p>
       <div class="button-row">
-        <button
-          class="button secondary"
-          @click="
-            nodeOpen = true;
-            saveError = '';
-          "
-        >
+        <button class="button secondary" @click="
+          nodeOpen = true;
+        saveError = '';
+        ">
           快速添加知识点
         </button>
-        <button
-          class="button secondary"
-          :disabled="!graph || graph.nodes.length < 2"
-          @click="
-            edgeOpen = true;
-            saveError = '';
-          "
-        >
+        <button class="button secondary" :disabled="!graph || graph.nodes.length < 2" @click="
+          edgeOpen = true;
+        saveError = '';
+        ">
           连接知识点
         </button>
       </div>
@@ -46,22 +31,9 @@
     <AppModal v-if="nodeOpen" title="快速添加知识点" @close="close">
       <form @submit.prevent="saveNode">
         <label class="field-label" for="quick-node-label">知识点名称</label>
-        <input
-          id="quick-node-label"
-          v-model.trim="node.label"
-          class="input"
-          required
-          maxlength="80"
-        />
-        <label class="field-label" for="quick-node-description"
-          >知识点说明</label>
-        <textarea
-          id="quick-node-description"
-          v-model="node.description"
-          class="input"
-          rows="3"
-          maxlength="5000"
-        />
+        <input id="quick-node-label" v-model.trim="node.label" class="input" required maxlength="80" />
+        <label class="field-label" for="quick-node-description">知识点说明</label>
+        <textarea id="quick-node-description" v-model="node.description" class="input" rows="3" maxlength="5000" />
         <p class="muted small">
           保存后立即加入当前课程，位置和任务关联可在完整编辑中调整。
         </p>
@@ -74,24 +46,14 @@
     <AppModal v-if="edgeOpen" title="连接课程知识点" @close="close">
       <form @submit.prevent="saveEdge">
         <label class="field-label" for="quick-edge-source">先学习</label>
-        <select
-          id="quick-edge-source"
-          v-model="edge.source"
-          class="input"
-          required
-        >
+        <select id="quick-edge-source" v-model="edge.source" class="input" required>
           <option value="">选择知识点</option>
           <option v-for="n in graph.nodes" :key="n.id" :value="n.id">
             {{ n.label }}
           </option>
         </select>
         <label class="field-label" for="quick-edge-target">再学习</label>
-        <select
-          id="quick-edge-target"
-          v-model="edge.target"
-          class="input"
-          required
-        >
+        <select id="quick-edge-target" v-model="edge.target" class="input" required>
           <option value="">选择知识点</option>
           <option v-for="n in graph.nodes" :key="n.id" :value="n.id">
             {{ n.label }}
@@ -189,16 +151,20 @@ export default {
 </script>
 <style lang="less" scoped>
 @import "../styles/tokens.less";
+
 .quick-graph {
   padding: 24px;
   margin-bottom: 18px;
 }
+
 .quick-graph .button-row {
   margin-top: 18px;
 }
-.quick-graph form > .button {
+
+.quick-graph form>.button {
   margin-top: 20px;
 }
+
 @media (max-width: 480px) {
   .quick-graph {
     padding: 18px;

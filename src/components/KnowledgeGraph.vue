@@ -1,138 +1,51 @@
 <template>
-  <div
-    class="knowledge-graph"
-    :data-phase="phase"
-    :class="{ 'motion-static': motionReduced }"
-  >
-    <svg
-      :viewBox="'0 0 ' + canvasWidth + ' 300'"
-      role="group"
-      :aria-label="title"
-    >
+  <div class="knowledge-graph" :data-phase="phase" :class="{ 'motion-static': motionReduced }">
+    <svg :viewBox="'0 0 ' + canvasWidth + ' 300'" role="group" :aria-label="title">
       <defs>
         <filter :id="glowId" x="-100%" y="-100%" width="300%" height="300%">
           <feGaussianBlur stdDeviation="4" />
         </filter>
-        <marker
-          :id="glowId + '-arrow'"
-          viewBox="0 0 10 10"
-          refX="15"
-          refY="5"
-          markerWidth="8"
-          markerHeight="8"
-          orient="auto"
-        >
-          <path
-            d="M 0 1 L 9 5 L 0 9"
-            fill="none"
-            stroke="#55c5ed"
-            stroke-width="1.5"
-          />
+        <marker :id="glowId + '-arrow'" viewBox="0 0 10 10" refX="15" refY="5" markerWidth="8" markerHeight="8"
+          orient="auto">
+          <path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#55c5ed" stroke-width="1.5" />
         </marker>
       </defs>
-      <path
-        v-for="(edge, i) in validEdges"
-        :key="i"
-        class="graph-link"
-        :class="{ 'is-active': touchesSelection(edge) }"
-        :d="line(edge)"
-        stroke="#207fc0"
-        fill="none"
-        stroke-width="1.6"
-        :marker-end="
-          phase === 'flowing' || phase === 'static'
+      <path v-for="(edge, i) in validEdges" :key="i" class="graph-link" :class="{ 'is-active': touchesSelection(edge) }"
+        :d="line(edge)" stroke="#207fc0" fill="none" stroke-width="1.6" :marker-end="phase === 'flowing' || phase === 'static'
             ? 'url(#' + glowId + '-arrow)'
             : null
-        "
-      />
+          " />
       <g class="graph-flow" aria-hidden="true" pointer-events="none">
-        <g
-          v-for="(edge, i) in flowEdges"
-          :key="i"
-          class="graph-packet"
-          :class="{ 'is-active': touchesSelection(edge) }"
-        >
+        <g v-for="(edge, i) in flowEdges" :key="i" class="graph-packet"
+          :class="{ 'is-active': touchesSelection(edge) }">
           <circle r="7" class="packet-halo" :filter="'url(#' + glowId + ')'" />
           <circle r="2.6" class="packet-core" />
         </g>
       </g>
       <!-- 光圈与知识节点是 SVG 同级元素，key 必须使用不同前缀。 -->
-      <g
-        v-if="selectedNode"
-        :key="'selection-' + selectedNode.id"
-        class="selection-ripples"
-        :transform="'translate(' + selectedNode.x + ' ' + selectedNode.y + ')'"
-        aria-hidden="true"
-        pointer-events="none"
-      >
-        <circle
-          v-for="wave in 2"
-          :key="wave"
-          class="selection-wave"
-          r="15"
-          fill="none"
-          stroke="#ffc777"
-          vector-effect="non-scaling-stroke"
-        />
+      <g v-if="selectedNode" :key="'selection-' + selectedNode.id" class="selection-ripples"
+        :transform="'translate(' + selectedNode.x + ' ' + selectedNode.y + ')'" aria-hidden="true"
+        pointer-events="none">
+        <circle v-for="wave in 2" :key="wave" class="selection-wave" r="15" fill="none" stroke="#ffc777"
+          vector-effect="non-scaling-stroke" />
         <circle class="selection-aura" r="24" fill="#ffc777" opacity=".06" />
       </g>
-      <g
-        v-for="node in projectedNodes"
-        :key="'node-' + node.id"
-        class="graph-node"
-        :class="{ 'is-selected': activeSelected === node.id }"
-        role="button"
-        tabindex="0"
-        :aria-label="node.label"
-        :aria-pressed="activeSelected === node.id ? 'true' : 'false'"
-        @click="choose(node)"
-        @keydown.enter.prevent="choose(node)"
-        @keydown.space.prevent="choose(node)"
-      >
+      <g v-for="node in projectedNodes" :key="'node-' + node.id" class="graph-node"
+        :class="{ 'is-selected': activeSelected === node.id }" role="button" tabindex="0" :aria-label="node.label"
+        :aria-pressed="activeSelected === node.id ? 'true' : 'false'" @click="choose(node)"
+        @keydown.enter.prevent="choose(node)" @keydown.space.prevent="choose(node)">
         <title>{{ node.label }}</title>
         <!-- 扩大点击区域，包含文字与光点之间的空隙，键盘交互仍由外层节点负责。 -->
-        <circle
-          class="node-hit"
-          :cx="node.x"
-          :cy="node.y"
-          r="26"
-          fill="transparent"
-          pointer-events="all"
-        />
-        <circle
-          :cx="node.x"
-          :cy="node.y"
-          :r="activeSelected === node.id ? 19 : 13"
-          :fill="activeSelected === node.id ? '#ffbd57' : '#00bffa'"
-          opacity=".45"
-          :filter="'url(#' + glowId + ')'"
-        />
-        <circle
-          :cx="node.x"
-          :cy="node.y"
-          :r="activeSelected === node.id ? 8 : 6"
-          :fill="activeSelected === node.id ? '#ffe6a9' : '#94eeff'"
-        />
-        <circle
-          :cx="node.x"
-          :cy="node.y"
-          :r="activeSelected === node.id ? 17 : 12"
-          :stroke="activeSelected === node.id ? '#ffc777' : '#32bcff'"
-          fill="none"
-        />
-        <text
-          :x="node.x"
-          :y="node.y + 32"
-          text-anchor="middle"
-          fill="#bad7f0"
-          :font-size="canvasWidth < 500 ? 13 : 15"
-        >
-          <tspan
-            v-for="(part, lineIndex) in labelLines(node.label)"
-            :key="lineIndex"
-            :x="node.x"
-            :dy="lineIndex ? 17 : 0"
-          >
+        <circle class="node-hit" :cx="node.x" :cy="node.y" r="26" fill="transparent" pointer-events="all" />
+        <circle :cx="node.x" :cy="node.y" :r="activeSelected === node.id ? 19 : 13"
+          :fill="activeSelected === node.id ? '#ffbd57' : '#00bffa'" opacity=".45" :filter="'url(#' + glowId + ')'" />
+        <circle :cx="node.x" :cy="node.y" :r="activeSelected === node.id ? 8 : 6"
+          :fill="activeSelected === node.id ? '#ffe6a9' : '#94eeff'" />
+        <circle :cx="node.x" :cy="node.y" :r="activeSelected === node.id ? 17 : 12"
+          :stroke="activeSelected === node.id ? '#ffc777' : '#32bcff'" fill="none" />
+        <text :x="node.x" :y="node.y + 32" text-anchor="middle" fill="#bad7f0" :font-size="canvasWidth < 500 ? 13 : 15">
+          <tspan v-for="(part, lineIndex) in labelLines(node.label)" :key="lineIndex" :x="node.x"
+            :dy="lineIndex ? 17 : 0">
             {{ part }}
           </tspan>
         </text>
@@ -297,7 +210,7 @@ export default {
       return [
         chars.slice(0, limit).join(""),
         chars.slice(limit, limit * 2 - 1).join("") +
-          (chars.length > limit * 2 - 1 ? "…" : ""),
+        (chars.length > limit * 2 - 1 ? "…" : ""),
       ];
     },
     choose(node) {
@@ -344,10 +257,12 @@ export default {
   position: relative;
   width: 100%;
   min-width: 0;
+
   // 视觉样式留在组件；GSAP 仅控制路径偏移、透明度、光点位置和扩散半径。
   &[data-phase="waiting"] .graph-link {
     opacity: 0;
   }
+
   .graph-link {
     stroke: #207fc0;
     stroke-linecap: round;
@@ -355,66 +270,83 @@ export default {
       stroke 0.2s,
       stroke-width 0.2s;
     pointer-events: none;
+
     &.is-active {
       stroke: #e2b46d;
       stroke-width: 2;
     }
   }
+
   .graph-packet {
     opacity: 0;
+
     .packet-halo {
       fill: #32bcff;
       opacity: 0.65;
     }
+
     .packet-core {
       fill: #d6faff;
     }
+
     &.is-active {
       .packet-halo {
         fill: #ffc777;
       }
+
       .packet-core {
         fill: #fff0cb;
       }
     }
   }
+
   .selection-wave {
     opacity: 0;
     stroke-width: 1.2;
   }
+
   .graph-node.is-selected text {
     fill: #ffe6a9;
     font-weight: 600;
   }
+
   .node-hit {
     stroke: none !important;
   }
+
   &.motion-static {
+
     .graph-packet,
     .selection-wave {
       opacity: 0 !important;
     }
   }
-  > svg {
+
+  >svg {
     display: block;
     width: 100%;
     height: 300px;
     min-height: 0;
     overflow: hidden;
   }
+
   .graph-node {
     cursor: pointer;
+
     &:hover circle {
       stroke: white;
     }
+
     &:focus {
       outline: none;
+
       circle:last-of-type {
         stroke: white;
         stroke-width: 3px;
       }
     }
   }
+
   .graph-legend {
     display: flex;
     gap: 20px;
@@ -422,25 +354,30 @@ export default {
     color: #8eb3d1;
     font-size: 10px;
     padding: 0 3px 9px;
-    > span {
+
+    >span {
       display: inline-flex;
       gap: 7px;
       align-items: center;
     }
-    > span:last-child {
+
+    >span:last-child {
       margin-left: auto;
     }
   }
 }
+
 @media (max-width: 767px) {
   .knowledge-graph {
-    > svg {
+    >svg {
       min-height: 0;
     }
+
     .graph-legend {
       font-size: 9px;
       gap: 12px;
-      > span:last-child {
+
+      >span:last-child {
         display: none;
       }
     }

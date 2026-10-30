@@ -1,45 +1,22 @@
 <template>
   <div class="group-graph-shell">
     <nav ref="directory" class="group-directory" aria-label="大知识点目录">
-      <button
-        v-for="group in normalized.groups"
-        :key="group.id"
-        type="button"
-        class="group-choice"
-        :aria-current="currentGroupId === group.id ? 'true' : null"
-        @click="chooseGroup(group.id)"
-      >
-        <span>{{ group.title }}</span
-        ><small>{{ count(group.id) }} / 6 个小知识点</small>
+      <button v-for="group in normalized.groups" :key="group.id" type="button" class="group-choice"
+        :aria-current="currentGroupId === group.id ? 'true' : null" @click="chooseGroup(group.id)">
+        <span>{{ group.title }}</span><small>{{ count(group.id) }} / 6 个小知识点</small>
       </button>
     </nav>
-    <section
-      v-if="currentGroup"
-      class="group-stage"
-      :aria-label="currentGroup.title"
-    >
+    <section v-if="currentGroup" class="group-stage" :aria-label="currentGroup.title">
       <div class="group-stage-heading">
         <div>
           <span class="group-parent-label">大知识点</span>
           <h3>{{ currentGroup.title }}</h3>
         </div>
-        <span class="muted small"
-          >包含 {{ slice.nodes.length }} 个小知识点</span
-        >
+        <span class="muted small">包含 {{ slice.nodes.length }} 个小知识点</span>
       </div>
-      <div
-        v-if="slice.nodes.length"
-        class="group-canvas"
-        aria-label="大知识点星图"
-      >
-        <KnowledgeGraph
-          :key="currentGroupId"
-          :title="currentGroup.title"
-          :nodes="slice.nodes"
-          :edges="slice.edges"
-          :selected="localSelected"
-          @select="chooseNode"
-        />
+      <div v-if="slice.nodes.length" class="group-canvas" aria-label="大知识点星图">
+        <KnowledgeGraph :key="currentGroupId" :title="currentGroup.title" :nodes="slice.nodes" :edges="slice.edges"
+          :selected="localSelected" @select="chooseNode" />
       </div>
       <p v-else class="group-empty muted">
         这个大知识点还没有内容，可在配置课程星图中添加小知识点。
@@ -49,18 +26,12 @@
       </p>
       <div v-if="relations.length" class="group-relations">
         <p class="muted small">这个知识点还关联了其他大知识点</p>
-        <button
-          v-for="node in relations"
-          :key="node.direction + ':' + node.id"
-          type="button"
-          class="group-relation"
-          @click="jumpTo(node)"
-        >
+        <button v-for="node in relations" :key="node.direction + ':' + node.id" type="button" class="group-relation"
+          @click="jumpTo(node)">
           <span>{{
             node.direction === "prerequisite" ? "前置知识" : "后续知识"
           }}</span>
-          <strong>{{ node.label }}</strong
-          ><small>{{ node.groupTitle }}</small>
+          <strong>{{ node.label }}</strong><small>{{ node.groupTitle }}</small>
           <AppIcon name="arrow" :size="16" />
         </button>
       </div>
@@ -171,11 +142,13 @@ export default {
 </script>
 <style lang="less" scoped>
 @import "../styles/tokens.less";
+
 /* 大知识点切换限制每次绘制范围；窄屏只让画布内部滚动，不撑开整页。 */
 .group-graph-shell {
   min-width: 0;
   margin: 24px 0;
 }
+
 .group-directory {
   display: flex;
   gap: 8px;
@@ -184,6 +157,7 @@ export default {
   scrollbar-width: thin;
   scrollbar-color: @border transparent;
 }
+
 .group-choice {
   flex: 0 0 155px;
   min-width: 0;
@@ -193,53 +167,63 @@ export default {
   background: transparent;
   text-align: left;
   color: @muted;
+
   span {
     display: block;
     overflow-wrap: anywhere;
     line-height: 1.5;
   }
+
   small {
     display: block;
     margin-top: 7px;
     font-size: 11px;
     color: @muted;
   }
+
   &[aria-current="true"] {
     border-color: @cyan;
     color: @text;
     background: fade(@cyan, 7%);
   }
+
   &:focus-visible {
     outline: 2px solid @amber;
     outline-offset: 2px;
   }
 }
+
 .group-stage {
   min-width: 0;
   border-top: 1px solid @border;
   padding-top: 20px;
 }
+
 .group-stage-heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+
   h3 {
     margin: 0;
     font-size: 17px;
     font-weight: 500;
     overflow-wrap: anywhere;
   }
-  > span {
+
+  >span {
     flex-shrink: 0;
   }
 }
+
 .group-parent-label {
   display: block;
   color: @cyan;
   font-size: 11px;
   margin-bottom: 8px;
 }
+
 .group-canvas {
   width: 100%;
   min-width: 0;
@@ -248,27 +232,33 @@ export default {
   padding: 24px 0 0;
   scrollbar-width: thin;
   scrollbar-color: @border transparent;
-  > .knowledge-graph {
+
+  >.knowledge-graph {
     width: 100%;
     min-width: 0;
   }
+
   &:focus-visible {
     outline: 1px solid @cyan;
     outline-offset: 3px;
   }
 }
+
 .group-empty {
   padding: 35px 0;
   line-height: 1.8;
 }
+
 .group-legacy {
   margin: 8px 0;
   line-height: 1.8;
 }
+
 .group-relations {
   border-top: 1px solid @border;
   padding-top: 14px;
 }
+
 .group-relation {
   display: flex;
   gap: 10px;
@@ -279,35 +269,43 @@ export default {
   background: transparent;
   border: 0;
   color: @text;
-  > span {
+
+  >span {
     color: @amber;
     font-size: 12px;
     flex-shrink: 0;
   }
+
   strong {
     font-size: 13px;
     font-weight: 500;
     overflow-wrap: anywhere;
   }
+
   small {
     color: @muted;
     margin-left: auto;
     overflow-wrap: anywhere;
   }
+
   .app-icon {
     color: @cyan;
     flex-shrink: 0;
   }
 }
+
 @media (max-width: 767px) {
   .group-choice {
     flex-basis: 148px;
   }
+
   .group-stage-heading {
     align-items: flex-start;
   }
+
   .group-relation {
     flex-wrap: wrap;
+
     small {
       margin-left: 0;
     }

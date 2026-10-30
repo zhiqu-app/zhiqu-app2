@@ -24,32 +24,19 @@
                 {{ graph ? graph.title : "每门课程都可以有自己的学习路线" }}
               </p>
             </div>
-            <router-link
-              :to="{
-                path: '/app/knowledge',
-                query: activeCourseId ? { course: activeCourseId } : {},
-              }"
-              class="text-button"
-              >完整路线
+            <router-link :to="{
+              path: '/app/knowledge',
+              query: activeCourseId ? { course: activeCourseId } : {},
+            }" class="text-button">完整路线
               <AppIcon name="arrow" :size="16" />
             </router-link>
           </div>
-          <label v-if="state.courses.length" class="overview-course-choice"
-            >选择课程<select
-              v-model="activeCourseId"
-              aria-label="选择课程"
-              class="input"
-              @change="changeCourse"
-            >
-              <option
-                v-for="course in state.courses"
-                :key="course.id"
-                :value="course.id"
-              >
+          <label v-if="state.courses.length" class="overview-course-choice">选择课程<select v-model="activeCourseId"
+              aria-label="选择课程" class="input" @change="changeCourse">
+              <option v-for="course in state.courses" :key="course.id" :value="course.id">
                 {{ course.name }}
               </option>
-            </select></label
-          >
+            </select></label>
           <p v-if="graphLoading" class="muted" role="status">
             正在读取课程星图…
           </p>
@@ -57,12 +44,8 @@
             {{ graphError }}
             <button class="text-button" @click="prepareGraph">重新加载</button>
           </p>
-          <GroupedKnowledgeGraph
-            v-else-if="graph && graph.groups.length"
-            :graph="graph"
-            :selected="selectedNodeId"
-            @select="select"
-          />
+          <GroupedKnowledgeGraph v-else-if="graph && graph.groups.length" :graph="graph" :selected="selectedNodeId"
+            @select="select" />
           <div v-else class="overview-graph-empty">
             <p>
               {{
@@ -71,10 +54,7 @@
                   : "先创建课程，再导入资料或配置知识星图。"
               }}
             </p>
-            <router-link
-              :to="state.mode === 'demo' ? '/login' : graphEditorPath"
-              class="button secondary"
-            >
+            <router-link :to="state.mode === 'demo' ? '/login' : graphEditorPath" class="button secondary">
               {{
                 state.mode === "demo"
                   ? "登录账号"
@@ -84,43 +64,36 @@
               }}
             </router-link>
           </div>
-          <router-link
-            v-if="graph && !graphLoading && !graphError"
-            :to="graphEditorPath"
-            class="text-button"
-            >编辑本课程知识点与关系</router-link
-          >
+          <router-link v-if="graph && !graphLoading && !graphError" :to="graphEditorPath"
+            class="text-button">编辑本课程知识点与关系</router-link>
         </article>
-        <section
-          v-if="state.mode !== 'account' || overview"
-          class="panel stat-strip"
-        >
+        <section v-if="state.mode !== 'account' || overview" class="panel stat-strip">
           <div>
-            <span>我的课程</span
-            ><strong>
-              <AnimatedNumber :value="totalCourses" /> <small>门</small>
+            <span>我的课程</span>
+            <strong>
+              <AnimatedNumber :value="totalCourses" />
+              <small>门</small>
             </strong>
           </div>
           <div>
-            <span>已作答</span
-            ><strong>
+            <span>已作答</span>
+            <strong>
               <AnimatedNumber :value="attemptCount" />
               <small>次</small>
             </strong>
           </div>
           <div>
-            <span>正确率</span
-            ><strong>
-              <AnimatedNumber v-if="attemptCount" :value="rate" /><template
-                v-else
-                >—</template
-              ><small>{{ attemptCount ? "%" : "" }}</small>
+            <span>正确率</span><strong>
+              <AnimatedNumber v-if="attemptCount" :value="rate" />
+              <template v-else>—</template>
+              <small>{{ attemptCount ? "%" : "" }}</small>
             </strong>
           </div>
           <div>
-            <span>待完成计划</span
-            ><strong>
-              <AnimatedNumber :value="pendingCount" /> <small>项</small>
+            <span>待完成计划</span>
+            <strong>
+              <AnimatedNumber :value="pendingCount" />
+              <small>项</small>
             </strong>
           </div>
         </section>
@@ -131,41 +104,27 @@
         <p v-else class="panel muted" role="status">正在读取学习统计…</p>
         <div class="section-heading">
           <h2>继续学习</h2>
-          <router-link to="/app/courses" class="text-button"
-            >查看全部
+          <router-link to="/app/courses" class="text-button">
+            查看全部
             <AppIcon name="arrow" :size="16" />
           </router-link>
         </div>
-        <CourseCard
-          v-for="course in courses"
-          :key="course.id"
-          :course="course"
-          :material-count="
-            state.materials.filter((m) => m.courseId === course.id).length
-          "
-          @archive="archive"
-        />
+        <CourseCard v-for="course in courses" :key="course.id" :course="course"
+          :material-count="state.materials.filter((m) => m.courseId === course.id).length" @archive="archive" />
       </section>
       <aside class="right-rail">
         <section class="panel">
           <div class="panel-heading">
             <h2>今日复习</h2>
-            <router-link to="/app/plan" class="text-button"
-              >管理计划</router-link
-            >
+            <router-link to="/app/plan" class="text-button">管理计划</router-link>
           </div>
-          <div
-            v-for="(task, i) in tasks.slice(0, 3)"
-            :key="task.id"
-            class="task-compact"
-          >
+          <div v-for="(task, i) in tasks.slice(0, 3)" :key="task.id" class="task-compact">
             <span class="step-circle">{{ i + 1 }}</span>
             <div>
-              <strong>{{ task.title }}</strong
-              ><small
-                >{{ task.minutes }} 分钟 · {{ task.date || "随时开始" }}</small
-              ><router-link :to="task.target || '/app/plan'" class="text-button"
-                >开始学习
+              <strong>{{ task.title }}</strong>
+              <small>{{ task.minutes }} 分钟 · {{ task.date || "随时开始" }}</small>
+              <router-link :to="task.target || '/app/plan'" class="text-button">
+                开始学习
                 <AppIcon name="chevron" :size="14" />
               </router-link>
             </div>
@@ -182,14 +141,10 @@
           <p class="muted">
             {{ graph ? graph.goal : "带着自己的问题，从课程资料中寻找线索。" }}
           </p>
-          <router-link
-            :to="
-              graph
-                ? { path: '/app/studio', query: { course: graph.courseId } }
-                : '/app/studio'
-            "
-            class="button secondary full-width"
-            >进入研习室
+          <router-link :to="graph
+            ? { path: '/app/studio', query: { course: graph.courseId } }
+            : '/app/studio'
+            " class="button secondary full-width">进入研习室
             <AppIcon name="arrow" :size="18" />
           </router-link>
         </section>
@@ -257,10 +212,10 @@ export default {
       if (state.mode === "account") return this.overview?.correctRate || 0;
       return state.attempts.length
         ? Math.round(
-            (state.attempts.filter((a) => a.correct).length /
-              state.attempts.length) *
-              100,
-          )
+          (state.attempts.filter((a) => a.correct).length /
+            state.attempts.length) *
+          100,
+        )
         : "—";
     },
   },
@@ -304,10 +259,12 @@ export default {
 .overview-graph-empty {
   padding: 40px 0;
   color: @muted;
+
   p {
     margin-bottom: 20px;
   }
 }
+
 .overview-course-choice {
   display: flex;
   align-items: center;
@@ -315,6 +272,7 @@ export default {
   margin-top: 20px;
   color: @muted;
   font-size: 13px;
+
   select {
     width: auto;
     max-width: 70%;
@@ -349,7 +307,7 @@ export default {
   padding: 16px 12px;
   margin-top: 16px;
 
-  > div {
+  >div {
     text-align: center;
     border-right: 1px solid #1d3d52;
 
@@ -357,7 +315,7 @@ export default {
       border-right: 0;
     }
 
-    > span {
+    >span {
       display: block;
       color: #88b0d0;
       font-size: 12px;
@@ -432,11 +390,11 @@ export default {
     gap: 0;
     padding: 14px 5px;
 
-    > div > span {
+    >div>span {
       font-size: 10px;
     }
 
-    > div strong {
+    >div strong {
       font-size: 22px;
     }
   }

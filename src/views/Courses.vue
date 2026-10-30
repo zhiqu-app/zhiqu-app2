@@ -23,52 +23,28 @@
       <section>
         <div class="filter-bar panel">
           <div class="tabs">
-            <button
-              v-for="f in filters"
-              :key="f.key"
-              :class="{ active: filter === f.key }"
-              @click="filter = f.key"
-            >
-              {{ f.label
-              }}<span v-if="f.key !== 'all'" class="count">{{
-                count(f.key)
-              }}</span>
+            <button v-for="f in filters" :key="f.key" :class="{ active: filter === f.key }" @click="filter = f.key">
+              {{ f.label }}
+              <span v-if="f.key !== 'all'" class="count">{{count(f.key)}}</span>
             </button>
           </div>
           <label class="search-field">
-            <AppIcon name="search" :size="18" /><input
-              v-model="search"
-              placeholder="搜索我的课程"
-              aria-label="搜索我的课程"
-            />
+            <AppIcon name="search" :size="18" />
+            <input v-model="search" placeholder="搜索我的课程" aria-label="搜索我的课程" />
           </label>
         </div>
         <div class="course-list">
-          <CourseCard
-            v-for="(course, index) in filtered"
-            :key="course.id"
-            :course="course"
-            :compact="index >= 2"
-            :material-count="
-              state.materials.filter((m) => m.courseId === course.id).length
-            "
-            @archive="toggleArchive"
-            :deletable="state.mode === 'account' && course._remote"
-            @delete="
+          <CourseCard v-for="(course, index) in filtered" :key="course.id" :course="course" :compact="index >= 2"
+            :material-count="state.materials.filter((m) => m.courseId === course.id).length
+              " @archive="toggleArchive" :deletable="state.mode === 'account' && course._remote" @delete="
               deleteTarget = $event;
-              deleteError = '';
-            "
-          />
-          <div
-            v-if="!loading && !loadError && !filtered.length"
-            class="panel empty-state"
-          >
+            deleteError = '';
+            " />
+          <div v-if="!loading && !loadError && !filtered.length" class="panel empty-state">
             <AppIcon name="book" :size="40" />
             <h2>没有找到课程</h2>
             <p>换一个关键词，或新建你的第一门课程。</p>
-            <button class="button primary" @click="showCreate = true">
-              新建课程
-            </button>
+            <button class="button primary" @click="showCreate = true">新建课程</button>
           </div>
         </div>
       </section>
@@ -78,12 +54,8 @@
             <h2>最近资料</h2>
             <AppIcon name="file" />
           </div>
-          <router-link
-            v-for="m in recent"
-            :key="m.id"
-            :to="'/app/courses/' + m.courseId"
-            class="material-row"
-            ><span class="file-icon">{{ m.type }}</span>
+          <router-link v-for="m in recent" :key="m.id" :to="'/app/courses/' + m.courseId" class="material-row"><span
+              class="file-icon">{{ m.type }}</span>
             <span>
               <strong>{{ m.name }}</strong>
               <small>{{ courseName(m.courseId) }} · {{ m.created }}</small>
@@ -107,38 +79,13 @@
           {{ createError }}
         </p>
         <label class="field-label" for="course-name">课程名称</label>
-        <input
-          id="course-name"
-          v-model.trim="form.name"
-          class="input"
-          required
-          maxlength="30"
-          placeholder="例如：计算机网络"
-        />
+        <input id="course-name" v-model.trim="form.name" class="input" required maxlength="30" placeholder="例如：计算机网络" />
         <label class="field-label" for="course-teacher">授课教师（选填）</label>
-        <input
-          id="course-teacher"
-          v-model.trim="form.teacher"
-          class="input"
-          maxlength="20"
-          placeholder="老师姓名"
-        />
-        <label class="field-label" for="course-description"
-          >课程简介（选填）</label
-        >
-        <textarea
-          id="course-description"
-          v-model.trim="form.description"
-          class="input"
-          rows="3"
-          maxlength="180"
-        />
+        <input id="course-teacher" v-model.trim="form.teacher" class="input" maxlength="20" placeholder="老师姓名" />
+        <label class="field-label" for="course-description">课程简介（选填）</label>
+        <textarea id="course-description" v-model.trim="form.description" class="input" rows="3" maxlength="180" />
         <div class="modal-actions">
-          <button
-            class="button secondary"
-            type="button"
-            @click="showCreate = false"
-          >
+          <button class="button secondary" type="button" @click="showCreate = false">
             取消
           </button>
           <button class="button primary" :disabled="busy || !form.name">
@@ -147,33 +94,14 @@
         </div>
       </form>
     </AppModal>
-    <AppModal
-      v-if="deleteTarget"
-      :title="'删除课程：' + deleteTarget.name + '？'"
-      @close="closeDelete"
-      ><p>
-        会删除这门课程的资料和 PDF
-        原文件、题库、作答、星图和问答记录，其他课程不受影响。
-      </p>
-      <p v-if="deleteError" class="error-message" role="alert">
-        {{ deleteError }}
-      </p>
+    <AppModal v-if="deleteTarget" :title="'删除课程：' + deleteTarget.name + '？'" @close="closeDelete">
+      <p>会删除这门课程的资料和 PDF原文件、题库、作答、星图和问答记录，其他课程不受影响。</p>
+      <p v-if="deleteError" class="error-message" role="alert">{{ deleteError }}</p>
       <div class="modal-actions">
-        <button
-          class="button secondary"
-          :disabled="deleting"
-          @click="closeDelete"
-        >
-          取消</button
-        ><button
-          class="button danger"
-          :disabled="deleting"
-          @click="confirmDelete"
-        >
-          {{ deleting ? "正在删除…" : "确认删除课程" }}
-        </button>
-      </div></AppModal
-    >
+        <button class="button secondary" :disabled="deleting" @click="closeDelete">取消</button>
+        <button class="button danger" :disabled="deleting" @click="confirmDelete">{{ deleting ? "正在删除…" : "确认删除课程" }}</button>
+      </div>
+    </AppModal>
   </div>
 </template>
 <script>

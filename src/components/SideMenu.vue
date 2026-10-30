@@ -1,36 +1,28 @@
 <template>
   <aside class="side-menu" aria-label="主导航">
-    <header class="side-menu__top"><BrandLogo /></header>
+    <header class="side-menu__top">
+      <BrandLogo />
+    </header>
     <nav class="side-menu__middle">
-        <router-link
-            v-for="item in items"
-            :key="item.path"
-            :to="item.path"
-            class="menu-link"
-            :class="{ selected: active(item.key) }"
-            :aria-current="active(item.key) ? 'page' : null"
-            @click.native="$emit('navigate')"
-            >
-            <AppIcon :name="item.icon" :size="25" />
-            <span>{{ item.label }}</span>
-        </router-link>
+      <router-link v-for="item in items" :key="item.path" :to="item.path" class="menu-link"
+        :class="{ selected: active(item.key) }" :aria-current="active(item.key) ? 'page' : null"
+        @click.native="$emit('navigate')">
+        <AppIcon :name="item.icon" :size="25" />
+        <span>{{ item.label }}</span>
+      </router-link>
     </nav>
     <footer class="side-menu__bottom">
-        <router-link to="/app/settings" class="profile-link" @click.native="$emit('navigate')">
-            <UserAvatar :name="user.name" :size="42" />
-            <span>
-                <strong>{{ user.name }}</strong>
-                <small>{{ user.grade }} · {{ user.major }}</small>
-            </span>
-        </router-link>
-        <router-link
-            to="/app/settings"
-            class="icon-button"
-            aria-label="个人设置"
-            :class="{ selected: $route.name === 'settings' }"
-            @click.native="$emit('navigate')">
-            <AppIcon name="settings" :size="20"/>
-        </router-link>
+      <router-link to="/app/settings" class="profile-link" @click.native="$emit('navigate')">
+        <UserAvatar :name="user.name" :size="42" />
+        <span>
+          <strong>{{ user.name }}</strong>
+          <small>{{ user.grade }} · {{ user.major }}</small>
+        </span>
+      </router-link>
+      <router-link to="/app/settings" class="icon-button" aria-label="个人设置"
+        :class="{ selected: $route.name === 'settings' }" @click.native="$emit('navigate')">
+        <AppIcon name="settings" :size="20" />
+      </router-link>
     </footer>
   </aside>
 </template>
@@ -71,16 +63,19 @@ export default {
   background: linear-gradient(155deg, #081e30, #061827 70%);
   border-right: 1px solid #17374d;
 }
+
 .side-menu__top {
   padding: 28px 24px 38px;
   flex-shrink: 0;
 }
+
 .side-menu__middle {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 0 8px;
 }
+
 .menu-link {
   height: 54px;
   margin-bottom: 10px;
@@ -93,27 +88,32 @@ export default {
   font-size: 17px;
   border-left: 2px solid transparent;
   text-decoration: none;
+
   &:hover {
     background: #102e48;
     color: white;
   }
+
   &.selected {
     background: linear-gradient(90deg, #103e61, #163354);
     border-color: #14daff;
     color: #fff;
     font-weight: 600;
+
     .app-icon {
       color: #2cdaff;
       filter: drop-shadow(0 0 5px #00aaff);
     }
   }
 }
+
 .side-menu__bottom {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 24px 16px 28px;
+
   .profile-link {
     display: flex;
     align-items: center;
@@ -121,14 +121,17 @@ export default {
     flex: 1;
     min-width: 0;
     text-decoration: none;
-    > span:last-child {
+
+    >span:last-child {
       min-width: 0;
     }
+
     strong {
       color: #edf5ff;
       display: block;
       font-size: 14px;
     }
+
     small {
       display: block;
       color: #9bbede;
@@ -140,6 +143,7 @@ export default {
       max-width: 112px;
     }
   }
+
   .selected {
     color: #1ed6ff;
   }

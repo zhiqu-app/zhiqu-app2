@@ -5,17 +5,8 @@
         <h1>AI 研习室</h1>
         <p>阅读课程资料、提问并回看之前的答疑记录。</p>
       </div>
-      <select
-        v-model="courseId"
-        class="input course-select"
-        aria-label="选择研习课程"
-        @change="courseChanged"
-      >
-        <option
-          v-for="course in state.courses"
-          :key="course.id"
-          :value="course.id"
-        >
+      <select v-model="courseId" class="input course-select" aria-label="选择研习课程" @change="courseChanged">
+        <option v-for="course in state.courses" :key="course.id" :value="course.id">
           {{ course.name }}
         </option>
       </select>
@@ -36,16 +27,9 @@
       </button>
     </div>
     <div class="studio-layout">
-      <section
-        class="panel document-panel"
-        :class="{ 'mobile-hidden': tab !== 'document' }"
-      >
+      <section class="panel document-panel" :class="{ 'mobile-hidden': tab !== 'document' }">
         <div class="document-toolbar">
-          <select
-            v-model="materialId"
-            aria-label="选择阅读资料"
-            @change="readDocument()"
-          >
+          <select v-model="materialId" aria-label="选择阅读资料" @change="readDocument()">
             <option v-for="m in materials" :key="m.id" :value="m.id">
               {{ m.name }}
             </option>
@@ -53,66 +37,37 @@
           </select>
           <span class="badge">{{ "账号课程资料" }}</span>
         </div>
-        <aside
-          v-if="activeSource"
-          class="source-preview"
-          aria-label="引用原文"
-          role="status"
-        >
+        <aside v-if="activeSource" class="source-preview" aria-label="引用原文" role="status">
           <div class="source-preview-heading">
-            <strong
-              ><AppIcon name="file" :size="14" />引用原文 ·
-              {{ activeSource.name }}</strong
-            >
-            <button
-              type="button"
-              aria-label="关闭引用定位"
-              @click="clearSource"
-            >
+            <strong>
+              <AppIcon name="file" :size="14" />引用原文 ·
+              {{ activeSource.name }}
+            </strong>
+            <button type="button" aria-label="关闭引用定位" @click="clearSource">
               ×
             </button>
           </div>
           <p>{{ activeSource.excerpt || "该引用未附带原文片段。" }}</p>
           <span>{{ sourceStatus }}</span>
         </aside>
-        <div
-          v-if="document && document.url"
-          class="document-view-tabs"
-          aria-label="PDF 阅读方式"
-        >
-          <button
-            type="button"
-            :aria-pressed="documentView === 'original'"
-            @click="setDocumentView('original')"
-          >
+        <div v-if="document && document.url" class="document-view-tabs" aria-label="PDF 阅读方式">
+          <button type="button" :aria-pressed="documentView === 'original'" @click="setDocumentView('original')">
             原始 PDF
           </button>
-          <button
-            type="button"
-            :aria-pressed="documentView === 'text'"
-            @click="setDocumentView('text')"
-          >
+          <button type="button" :aria-pressed="documentView === 'text'" @click="setDocumentView('text')">
             提取文字
           </button>
-          <span v-if="sourceRange && sourceRange.page"
-            >引用位于第 {{ sourceRange.page }} 页</span
-          >
+          <span v-if="sourceRange && sourceRange.page">引用位于第 {{ sourceRange.page }} 页</span>
         </div>
         <div v-if="docLoading" class="empty-state" role="status">
           正在读取原始文件…
         </div>
         <div v-else-if="docError" class="empty-state">
           <p class="error-message" role="alert">{{ docError }}</p>
-          <button class="button secondary" @click="readDocument(activeSource)">
-            重试读取
-          </button>
+          <button class="button secondary" @click="readDocument(activeSource)">重试读取</button>
         </div>
-        <iframe
-          v-else-if="document && document.url && documentView === 'original'"
-          :src="document.url"
-          title="课程 PDF 预览"
-          class="studio-pdf"
-        />
+        <iframe v-else-if="document && document.url && documentView === 'original'" :src="document.url"
+          title="课程 PDF 预览" class="studio-pdf" />
         <article v-else-if="document" ref="document" class="document-paper">
           <span class="document-kicker">知序 · 课程资料</span>
           <h2>{{ document.name.replace(/\.(txt|md)$/i, "") }}</h2>
@@ -121,13 +76,8 @@
           </p>
           <div v-for="p in paragraphs" :key="p.start" class="paper-paragraph">
             <template v-for="(segment, index) in p.segments">
-              <mark
-                v-if="segment.highlighted"
-                :key="index"
-                class="source-highlight-text"
-                tabindex="-1"
-                >{{ segment.text }}</mark
-              >
+              <mark v-if="segment.highlighted" :key="index" class="source-highlight-text" tabindex="-1">{{ segment.text
+              }}</mark>
               <span v-else :key="index">{{ segment.text }}</span>
             </template>
           </div>
@@ -140,28 +90,16 @@
           <AppIcon name="file" :size="40" />
           <h2>还没有课程资料</h2>
           <p>在已建立的课程中导入 TXT、Markdown 或 PDF。</p>
-          <router-link
-            :to="courseId ? '/app/courses/' + courseId : '/app/courses'"
-            class="button primary"
-            >导入资料</router-link
-          >
+          <router-link :to="courseId ? '/app/courses/' + courseId : '/app/courses'"
+            class="button primary">导入资料</router-link>
         </div>
       </section>
-      <section
-        class="panel chat-panel"
-        :class="{ 'mobile-hidden': tab !== 'chat' }"
-      >
+      <section class="panel chat-panel" :class="{ 'mobile-hidden': tab !== 'chat' }">
         <div class="panel-heading">
           <h2>课程答疑</h2>
-          <span class="badge"
-            >{{
-              remoteCourse
-                ? answerMode === "llm"
-                  ? "模型答疑"
-                  : answerMode === "retrieval"
-                    ? "课程资料检索"
-                    : "账号答疑"
-                : "本地检索演示"
+          <span class="badge">
+            {{
+              remoteCourse ? answerMode === "llm" ? "模型答疑" : answerMode === "retrieval" ? "课程资料检索" : "账号答疑" : "本地检索演示"
             }}
           </span>
         </div>
@@ -176,34 +114,20 @@
             <p>
               {{ "问答与引用保存在账号中，下次进入这门课程可继续查看。" }}
             </p>
-            <button
-              v-for="text in suggestions"
-              :key="text"
-              class="suggestion-button"
-              :disabled="busy || loading || !canAsk"
-              @click="send(text)"
-            >
-              {{ text }}<AppIcon name="arrow" :size="16" />
+            <button v-for="text in suggestions" :key="text" class="suggestion-button"
+              :disabled="busy || loading || !canAsk" @click="send(text)">
+              {{ text }}
+              <AppIcon name="arrow" :size="16" />
             </button>
           </div>
-          <article
-            v-for="message in messages"
-            :key="message.id"
-            class="message"
-            :class="message.role"
-          >
+          <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
             <UserAvatar v-if="message.role === 'user'" :size="30" />
             <div v-else class="assistant-avatar">
               <AppIcon name="book" :size="20" />
             </div>
             <div class="message-body">
               <p>{{ message.text }}</p>
-              <button
-                v-for="(source, i) in message.sources"
-                :key="i"
-                class="source-chip"
-                @click="locate(source)"
-              >
+              <button v-for="(source, i) in message.sources" :key="i" class="source-chip" @click="locate(source)">
                 <AppIcon name="file" :size="16" />{{ source.name }} · 原文片段
               </button>
             </div>
@@ -212,33 +136,18 @@
         </div>
         <div class="chat-compose">
           <p class="small muted">
-            <AppIcon name="info" :size="14" />{{
+            <AppIcon name="info" :size="14" />
+            {{
               "支持可解析的课程文字与 PDF；扫描图片暂无 OCR。"
             }}
           </p>
           <form @submit.prevent="send(question)">
-            <textarea
-              v-model="question"
-              aria-label="向课程资料提问"
-              placeholder="结合课程资料提问…"
-              rows="2"
-              maxlength="2000"
-              @keydown.enter.exact.prevent="send(question)"
-            />
-            <button
-              v-if="busy"
-              class="button secondary"
-              type="button"
-              @click="stop"
-            >
+            <textarea v-model="question" aria-label="向课程资料提问" placeholder="结合课程资料提问…" rows="2" maxlength="2000"
+              @keydown.enter.exact.prevent="send(question)" />
+            <button v-if="busy" class="button secondary" type="button" @click="stop">
               停止
             </button>
-            <button
-              v-else
-              class="send-button"
-              :disabled="!question.trim() || !canAsk || loading"
-              aria-label="发送问题"
-            >
+            <button v-else class="send-button" :disabled="!question.trim() || !canAsk || loading" aria-label="发送问题">
               <AppIcon name="send" />
             </button>
           </form>
@@ -355,8 +264,8 @@ export default {
           typeof this.$route.query.course === "string"
             ? this.$route.query.course
             : state.courses.find((c) => !c.archived)?.id ||
-              state.courses[0]?.id ||
-              "";
+            state.courses[0]?.id ||
+            "";
         await this.courseChanged();
       } catch (error) {
         this.loadError = error.message;
@@ -569,6 +478,7 @@ export default {
   border-radius: 7px;
   background: #0c3045;
   flex: none;
+
   p {
     margin: 6px 0;
     max-height: 70px;
@@ -579,15 +489,18 @@ export default {
     line-height: 1.7;
     color: #c4e3f0;
   }
-  > span {
+
+  >span {
     font-size: 10px;
     color: #82bed5;
   }
 }
+
 .source-preview-heading {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+
   strong {
     display: flex;
     align-items: center;
@@ -598,6 +511,7 @@ export default {
     min-width: 0;
     overflow-wrap: anywhere;
   }
+
   button {
     margin-left: auto;
     padding: 0 3px;
@@ -606,6 +520,7 @@ export default {
     color: #9ac8dc;
   }
 }
+
 .document-view-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -613,18 +528,21 @@ export default {
   gap: 8px;
   padding: 10px 12px 10px;
   flex: none;
+
   button {
     padding: 6px 10px;
     border: 1px solid #28516b;
     border-radius: 5px;
     font-size: 11px;
     color: #86b1c8;
+
     &[aria-pressed="true"] {
       color: #b1edff;
       border-color: #4fa8c5;
       background: #143b50;
     }
   }
+
   span {
     font-size: 10px;
     color: #83a9bd;
@@ -739,7 +657,7 @@ export default {
   overflow: hidden;
   min-height: 0;
 
-  > .panel-heading {
+  >.panel-heading {
     padding: 17px 20px;
     margin: 0;
     border-bottom: 1px solid @border;
@@ -757,7 +675,7 @@ export default {
 .chat-intro {
   margin: 6px 0 30px;
 
-  > .app-icon {
+  >.app-icon {
     color: #3dd6ff;
     margin-bottom: 12px;
   }
@@ -843,7 +761,7 @@ export default {
   padding: 13px 16px 16px;
   border-top: 1px solid @border;
 
-  > p {
+  >p {
     font-size: 10px;
     margin-bottom: 10px;
     display: flex;
@@ -867,6 +785,7 @@ export default {
     min-height: 52px;
     max-height: 140px;
     font-size: 13px;
+
     &:focus-visible {
       outline-offset: 0px;
     }
@@ -927,7 +846,7 @@ export default {
       display: none;
     }
 
-    > .panel {
+    >.panel {
       height: calc(100dvh - 340px);
       min-height: 420px;
     }

@@ -1,20 +1,11 @@
 <template>
   <div id="zhixu" :class="{ 'reduce-motion': state.settings.reducedMotion }">
-    <transition
-      name="public-page"
-      mode="out-in"
-      :css="allowMotion"
-      @after-enter="publicReady"
-    >
-      <router-view
-        :key="viewKey"
-        :data-route-path="$route.fullPath"
-        :inert="blockPublic ? '' : null"
-      />
+    <transition name="public-page" mode="out-in" :css="allowMotion" @after-enter="publicReady">
+      <router-view :key="viewKey" :data-route-path="$route.fullPath" :inert="blockPublic ? '' : null" />
     </transition>
     <NavigationFeedback />
-    <transition name="toast"
-      ><div v-if="state.toast" class="toast-message" role="status">
+    <transition name="toast">
+      <div v-if="state.toast" class="toast-message" role="status">
         <AppIcon name="info" />{{ state.toast }}
       </div>
     </transition>
@@ -81,18 +72,22 @@ export default {
   max-width: min(560px, 90vw);
   width: max-content;
   font-size: 14px;
+
   .app-icon {
     color: @cyan;
   }
 }
+
 .toast-enter-active,
 .toast-leave-active {
   transition: opacity 0.2s;
 }
+
 .toast-enter,
 .toast-leave-to {
   opacity: 0;
 }
+
 @media (max-width: 767px) {
   .toast-message {
     bottom: calc(88px + env(safe-area-inset-bottom));
@@ -100,17 +95,20 @@ export default {
     padding: 12px 15px;
   }
 }
+
 .public-page-enter-active {
   transition:
     opacity 0.28s ease-out,
     transform 0.28s cubic-bezier(0.2, 0.75, 0.25, 1);
 }
+
 .public-page-leave-active {
   transition:
     opacity 0.14s ease,
     transform 0.14s ease;
   pointer-events: none;
 }
+
 .public-page-enter,
 .public-page-leave-to {
   opacity: 0;

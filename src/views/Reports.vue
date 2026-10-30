@@ -27,19 +27,19 @@
       <AppIcon name="chart" :size="44" />
       <h2>先积累一次真实的练习</h2>
       <p>完成答题后，这里会展示你的正确率、用时和知识点记录。</p>
-      <router-link to="/app/practice" class="button primary"
-        >开始练习</router-link
-      >
+      <router-link to="/app/practice" class="button primary">开始练习</router-link>
     </div>
-    <template v-else
-      ><div class="content-with-aside">
+    <template v-else>
+      <div class="content-with-aside">
         <section>
           <div class="panel report-stats">
             <div>
               <AppIcon name="file" /><span>答对 / 作答</span>
-              <strong
-                ><AnimatedNumber :value="correct" />
-                <small>/ <AnimatedNumber :value="totalCount" /></small>
+              <strong>
+                <AnimatedNumber :value="correct" />
+                <small>/
+                  <AnimatedNumber :value="totalCount" />
+                </small>
               </strong>
             </div>
             <div>
@@ -47,12 +47,12 @@
               <span>本次范围正确率</span>
             </div>
             <div>
-              <AppIcon name="clock" /><span>累计练习用时</span
-              ><strong
-                ><AnimatedNumber :value="minutes" /><small>
-                  分 <AnimatedNumber :value="seconds" /> 秒</small
-                ></strong
-              >
+              <AppIcon name="clock" /><span>累计练习用时</span><strong>
+                <AnimatedNumber :value="minutes" /><small>
+                  分
+                  <AnimatedNumber :value="seconds" /> 秒
+                </small>
+              </strong>
             </div>
           </div>
           <section class="panel report-chart">
@@ -60,30 +60,21 @@
               <h2>最近七天的练习节奏</h2>
               <span class="small muted">单位：作答次数</span>
             </div>
-            <div
-              :key="range"
-              class="chart-bars chart-animated"
-              role="img"
-              aria-label="最近七天每日作答次数柱状图"
-            >
-              <div
-                v-for="(day, index) in days"
-                :key="day.key"
-                class="chart-column"
-                :style="{ '--bar-delay': index * 65 + 'ms' }"
-              >
+            <div :key="range" class="chart-bars chart-animated" role="img" aria-label="最近七天每日作答次数柱状图">
+              <div v-for="(day, index) in days" :key="day.key" class="chart-column"
+                :style="{ '--bar-delay': index * 65 + 'ms' }">
                 <strong>{{ day.count || "" }}</strong>
-                <div
-                  :style="{
-                    height: Math.max(2, (day.count / maxCount) * 150) + 'px',
-                  }"
-                />
+                <div :style="{
+                  height: Math.max(2, (day.count / maxCount) * 150) + 'px',
+                }" />
                 <span>{{ day.label }}</span>
               </div>
             </div>
           </section>
           <section class="panel">
-            <div class="panel-heading"><h2>知识点练习详情</h2></div>
+            <div class="panel-heading">
+              <h2>知识点练习详情</h2>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -101,8 +92,7 @@
                     <td>{{ point.rate }}%</td>
                     <td>
                       <router-link to="/app/mistakes" class="text-button">{{
-                        point.rate < 80 ? "继续巩固" : "回顾记录"
-                      }}</router-link>
+                        point.rate < 80 ? "继续巩固" : "回顾记录" }}</router-link>
                     </td>
                   </tr>
                 </tbody>
@@ -115,30 +105,24 @@
             <h2>下一步，学什么</h2>
             <p class="muted">
               {{
-                rate < 80
-                  ? "回看错题对应的定义，再用例子检验理解。"
-                  : "保持节奏，安排一次间隔复习。"
-              }}
-            </p>
-            <router-link to="/app/mistakes" class="button secondary full-width">
-              回看错题
-            </router-link>
-            <router-link to="/app/plan" class="button primary full-width">
-              安排复习计划
-            </router-link>
+                rate < 80 ? "回看错题对应的定义，再用例子检验理解。" : "保持节奏，安排一次间隔复习。" }} </p>
+                <router-link to="/app/mistakes" class="button secondary full-width">
+                  回看错题
+                </router-link>
+                <router-link to="/app/plan" class="button primary full-width">
+                  安排复习计划
+                </router-link>
           </section>
           <section class="panel tip-card">
             <AppIcon name="info" />
             <h2>记录需要时间</h2>
             <p>
-              {{
-                "这些数据来自账号中保存的后端作答记录。"
-              }}少量题目不能代表完整的学习能力。
+              {{"这些数据来自账号中保存的后端作答记录。"}}少量题目不能代表完整的学习能力。
             </p>
           </section>
         </aside>
-      </div></template
-    >
+      </div>
+    </template>
   </div>
 </template>
 <script>
@@ -218,15 +202,15 @@ export default {
           JSON.stringify(
             state.mode === "account"
               ? {
-                  exportedAt: new Date().toISOString(),
-                  courseId: this.$route.query.course || null,
-                  summary: this.summary,
-                }
+                exportedAt: new Date().toISOString(),
+                courseId: this.$route.query.course || null,
+                summary: this.summary,
+              }
               : {
-                  exportedAt: new Date().toISOString(),
-                  attempts: state.attempts,
-                  tasks: state.tasks,
-                },
+                exportedAt: new Date().toISOString(),
+                attempts: state.attempts,
+                tasks: state.tasks,
+              },
             null,
             2,
           ),
@@ -266,36 +250,44 @@ export default {
   grid-template-columns: repeat(3, 1fr);
   align-items: center;
   margin-bottom: 20px;
-  > div {
+
+  >div {
     display: flex;
     align-items: center;
     flex-direction: column;
     gap: 10px;
     border-right: 1px solid #23435c;
+
     &:last-child {
       border: 0;
     }
-    > .app-icon {
+
+    >.app-icon {
       color: #25baf3;
     }
-    > span {
+
+    >span {
       color: #8eb0cc;
       font-size: 12px;
     }
-    > strong {
+
+    >strong {
       color: #d9efff;
       font-size: 30px;
       font-weight: 500;
     }
+
     small {
       font-size: 14px;
       color: #98b6ce;
     }
   }
 }
+
 .report-chart {
   margin-bottom: 20px;
 }
+
 .chart-bars {
   display: flex;
   justify-content: space-around;
@@ -303,47 +295,53 @@ export default {
   height: 220px;
   border-bottom: 1px solid #29475c;
   padding: 0 10px 8px;
-  background: repeating-linear-gradient(
-    to top,
-    transparent 0,
-    transparent 49px,
-    #173b512e 50px
-  );
+  background: repeating-linear-gradient(to top,
+      transparent 0,
+      transparent 49px,
+      #173b512e 50px);
+
   .chart-column {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 10%;
     gap: 8px;
-    > div {
+
+    >div {
       width: 65%;
       min-width: 12px;
       border-radius: 3px 3px 0 0;
       background: linear-gradient(0deg, #0e85d1, @cyan);
     }
+
     span {
       font-size: 11px;
       color: #93b6d2;
     }
+
     strong {
       font-size: 11px;
       font-weight: 500;
     }
   }
 }
+
 .table-wrap {
   overflow-x: auto;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
+
   th {
     color: #749fbe;
     font-weight: normal;
     background: #081d2e;
   }
+
   th,
   td {
     padding: 14px 12px;
@@ -351,36 +349,44 @@ table {
     white-space: nowrap;
   }
 }
+
 @media (max-width: 767px) {
   .report-stats {
     gap: 4px;
     padding: 18px 8px;
-    > div {
-      > strong {
+
+    >div {
+      >strong {
         font-size: 25px;
       }
-      > span {
+
+      >span {
         font-size: 10px;
       }
     }
   }
+
   .chart-bars {
     padding: 0;
+
     .chart-column span {
       font-size: 10px;
     }
   }
 }
-.reveal-visible .chart-animated .chart-column > div {
+
+.reveal-visible .chart-animated .chart-column>div {
   transform-origin: center bottom;
   animation: chart-rise 0.75s cubic-bezier(0.2, 0.75, 0.25, 1) both;
   animation-delay: calc(var(--reveal-delay, 0ms) + var(--bar-delay, 0ms));
 }
+
 @keyframes chart-rise {
   from {
     transform: scaleY(0);
     opacity: 0.3;
   }
+
   to {
     transform: scaleY(1);
     opacity: 1;

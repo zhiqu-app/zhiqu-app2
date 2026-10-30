@@ -2,44 +2,28 @@
   <div>
     <header class="page-heading">
       <div>
-        <span class="eyebrow"
-          >{{ course ? course.name : "课程题库"
-          }}{{ current ? " · " + current.point : "" }}</span
-        >
+        <span class="eyebrow">{{ course ? course.name : "课程题库" }}{{ current ? " · " + current.point : "" }}</span>
         <h1>{{ submitted ? "练习解析" : "课程巩固练习" }}</h1>
         <p>
           {{ "题目与判分来自后端，作答保存在你的账号中。" }}
         </p>
       </div>
       <div class="button-row">
-        <router-link
-          :to="{
-            path: '/app/history',
-            query: courseId ? { course: courseId } : {},
-          }"
-          class="button secondary"
-          >作答历史</router-link
-        >
-        <router-link
-          v-if="course && course._remote"
-          :to="'/app/courses/' + course.id + '/questions'"
-          class="button secondary"
-          >配置题库</router-link
-        ><router-link
-          :to="{
-            path: '/app/mistakes',
-            query: course ? { course: course.id } : {},
-          }"
-          class="button secondary"
-          >错题本</router-link
-        >
+        <router-link :to="{
+          path: '/app/history',
+          query: courseId ? { course: courseId } : {},
+        }" class="button secondary">作答历史</router-link>
+        <router-link v-if="course && course._remote" :to="'/app/courses/' + course.id + '/questions'"
+          class="button secondary">配置题库</router-link>
+        <router-link :to="{
+          path: '/app/mistakes',
+          query: course ? { course: course.id } : {},
+        }" class="button secondary">
+          错题本
+        </router-link>
       </div>
     </header>
-    <section
-      v-if="task && !loading && !loadError"
-      class="panel practice-task"
-      aria-live="polite"
-    >
+    <section v-if="task && !loading && !loadError" class="panel practice-task" aria-live="polite">
       <div>
         <span class="badge">习题计划</span>
         <h2>{{ task.title }}</h2>
@@ -53,32 +37,19 @@
         </p>
       </div>
       <div class="button-row">
-        <button
-          v-if="task.done"
-          class="button secondary"
-          :disabled="busy"
-          @click="restartTask"
-        >
+        <button v-if="task.done" class="button secondary" :disabled="busy" @click="restartTask">
           重新练习全部题目
         </button>
-        <router-link to="/app/plan" class="button secondary"
-          >返回复习计划</router-link
-        >
+        <router-link to="/app/plan" class="button secondary">返回复习计划</router-link>
       </div>
     </section>
-    <label v-if="state.courses.length" class="practice-course"
-      >练习课程<select
-        v-model="courseId"
-        class="input"
-        aria-label="练习课程"
-        :disabled="busy || !!taskId || loading"
-        @change="changeCourse"
-      >
+    <label v-if="state.courses.length" class="practice-course">练习课程
+      <select v-model="courseId" class="input" aria-label="练习课程" :disabled="busy || !!taskId || loading" @change="changeCourse">
         <option v-for="item in state.courses" :key="item.id" :value="item.id">
           {{ item.name }}
         </option>
-      </select></label
-    >
+      </select>
+    </label>
     <section v-if="loading" class="panel empty-state" role="status">
       正在读取课程题库…
     </section>
@@ -89,68 +60,44 @@
     <section v-else-if="!current" class="panel empty-state">
       <h2>{{ course ? "这门课程还没有可练习的题目" : "先选择或创建课程" }}</h2>
       <p>进入课程的「配置题库」，导入 JSON 题目后再开始练习。</p>
-      <router-link
-        :to="
-          course && course._remote
-            ? '/app/courses/' + course.id + '/questions'
-            : '/app/courses'
-        "
-        class="button primary"
-        >{{ course && course._remote ? "配置题库" : "我的课程" }}</router-link
-      >
+      <router-link :to="course && course._remote
+        ? '/app/courses/' + course.id + '/questions'
+        : '/app/courses'
+        " class="button primary">{{ course && course._remote ? "配置题库" : "我的课程" }}</router-link>
     </section>
     <div v-else class="content-with-aside practice-layout">
       <section class="panel question-panel">
         <div class="question-status">
-          <span
-            >第 <strong>{{ index + 1 }}</strong> /
-            {{ questions.length }} 题</span
-          >
+          <span>第 <strong>{{ index + 1 }}</strong> /
+            {{ questions.length }} 题</span>
           <div class="progress-track">
-            <i
-              :style="{ width: ((index + 1) / questions.length) * 100 + '%' }"
-            />
+            <i :style="{ width: ((index + 1) / questions.length) * 100 + '%' }" />
           </div>
-          <span><AppIcon name="clock" :size="16" />{{ time }}</span>
+          <span>
+            <AppIcon name="clock" :size="16" />{{ time }}
+          </span>
         </div>
         <div class="question-body">
           <span class="badge">单选题</span>
           <h2>{{ current.title }}</h2>
           <div class="answer-options" role="radiogroup" aria-label="选择答案">
-            <label
-              v-for="(option, i) in current.options"
-              :key="i"
-              class="answer-option"
-              :class="{
-                chosen: choice === i,
-                correct: submitted && i === graded.answer,
-                wrong: submitted && choice === i && choice !== graded.answer,
-              }"
-            >
-              <input
-                v-model="choice"
-                type="radio"
-                :value="i"
-                :disabled="submitted || busy"
-                name="answer"
-                @change="choiceChanged"
-              />
+            <label v-for="(option, i) in current.options" :key="i" class="answer-option" :class="{
+              chosen: choice === i,
+              correct: submitted && i === graded.answer,
+              wrong: submitted && choice === i && choice !== graded.answer,
+            }">
+              <input v-model="choice" type="radio" :value="i" :disabled="submitted || busy" name="answer"
+                @change="choiceChanged" />
               <span class="option-letter">{{ letters[i] }}</span>
               <span>{{ option }}</span>
-              <span v-if="submitted && i === graded.answer" class="badge"
-                >正确答案</span
-              >
+              <span v-if="submitted && i === graded.answer" class="badge">正确答案</span>
             </label>
           </div>
           <p v-if="submitError" class="error-message" role="alert">
             {{ submitError }}
           </p>
-          <section
-            v-if="submitted"
-            class="answer-explanation"
-            :class="{ incorrect: choice !== graded.answer }"
-            aria-live="polite"
-          >
+          <section v-if="submitted" class="answer-explanation" :class="{ incorrect: choice !== graded.answer }"
+            aria-live="polite">
             <h3>
               <AppIcon :name="choice === graded.answer ? 'check' : 'info'" />{{
                 choice === graded.answer
@@ -159,32 +106,19 @@
               }}
             </h3>
             <p>{{ graded.explanation }}</p>
-            <router-link
-              :to="{ path: '/app/studio', query: { course: courseId } }"
-              class="source-chip"
-              ><AppIcon name="file" :size="16" />回看本课程资料</router-link
-            >
+            <router-link :to="{ path: '/app/studio', query: { course: courseId } }" class="source-chip">
+              <AppIcon name="file" :size="16" />回看本课程资料
+            </router-link>
             <p v-if="choice !== graded.answer" class="small muted">
               本题已记录到错题本。
             </p>
           </section>
         </div>
         <footer class="question-actions">
-          <button
-            class="button secondary"
-            :disabled="index === 0 || busy"
-            @click="go(index - 1)"
-          >
-            上一题</button
-          ><span class="muted small">{{ "后端题库 · 服务端判分" }}</span
-          ><button
-            v-if="!submitted"
-            class="button primary"
-            :disabled="choice === null || busy"
-            @click="submit"
-          >
-            {{ busy ? "正在保存…" : "提交答案" }}</button
-          ><button v-else class="button primary" @click="next">
+          <button class="button secondary" :disabled="index === 0 || busy" @click="go(index - 1)">
+            上一题</button><span class="muted small">{{ "后端题库 · 服务端判分" }}</span><button v-if="!submitted"
+            class="button primary" :disabled="choice === null || busy" @click="submit">
+            {{ busy ? "正在保存…" : "提交答案" }}</button><button v-else class="button primary" @click="next">
             {{ index === questions.length - 1 ? "查看本次报告" : "下一题" }}
           </button>
         </footer>
@@ -193,24 +127,13 @@
         <section class="panel">
           <h2>题目目录</h2>
           <div class="question-directory">
-            <button
-              v-for="(q, i) in questions"
-              :key="q.id"
-              :class="{
-                current: index === i,
-                answered: answers[q.id] || isTaskQuestionCompleted(q.id),
-              }"
-              :aria-label="'跳转到第' + (i + 1) + '题'"
-              :disabled="busy"
-              @click="go(i)"
-            >
-              <span>{{ i + 1 }}</span
-              >{{ q.point
-              }}<AppIcon
-                v-if="answers[q.id] || isTaskQuestionCompleted(q.id)"
-                name="check"
-                :size="16"
-              />
+            <button v-for="(q, i) in questions" :key="q.id" :class="{
+              current: index === i,
+              answered: answers[q.id] || isTaskQuestionCompleted(q.id),
+            }" :aria-label="'跳转到第' + (i + 1) + '题'" :disabled="busy" @click="go(i)">
+              <span>{{ i + 1 }}</span>{{ q.point
+              }}
+              <AppIcon v-if="answers[q.id] || isTaskQuestionCompleted(q.id)" name="check" :size="16" />
             </button>
           </div>
         </section>
@@ -394,7 +317,7 @@ export default {
       let draft = {};
       try {
         draft = JSON.parse(sessionStorage.getItem(this.draftKey)) || {};
-      } catch (_) {}
+      } catch (_) { }
       this.answers = {};
       for (const q of this.questions) {
         const answer = draft.answers?.[q.id];
@@ -413,9 +336,9 @@ export default {
         index >= 0
           ? index
           : Math.max(
-              0,
-              Math.min(Number(draft.index) || 0, this.questions.length - 1),
-            );
+            0,
+            Math.min(Number(draft.index) || 0, this.questions.length - 1),
+          );
       this.seconds =
         Number.isFinite(draft.seconds) && draft.seconds >= 0
           ? draft.seconds
@@ -424,8 +347,8 @@ export default {
       const pending = draft.pendingSubmission;
       this.pendingSubmission =
         pending &&
-        this.questions.some((question) => question.id === pending.questionId) &&
-        (pending.taskId || "") === this.taskId
+          this.questions.some((question) => question.id === pending.questionId) &&
+          (pending.taskId || "") === this.taskId
           ? pending
           : null;
       this.choice = this.answers[this.current?.id]?.choice ?? null;
@@ -446,7 +369,7 @@ export default {
             pendingSubmission: this.pendingSubmission,
           }),
         );
-      } catch (_) {}
+      } catch (_) { }
     },
     choiceChanged() {
       this.submitError = "";
@@ -567,6 +490,7 @@ export default {
   gap: 16px;
   margin-bottom: 20px;
   color: @muted;
+
   select {
     width: auto;
     max-width: 75%;
@@ -574,25 +498,30 @@ export default {
     color: @text;
   }
 }
+
 .practice-task {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+
   h2 {
     font-size: 17px;
     margin: 12px 0;
     overflow-wrap: anywhere;
   }
+
   p {
     color: @muted;
     font-size: 13px;
     line-height: 1.8;
   }
+
   strong {
     color: @cyan;
   }
+
   .button-row {
     flex-shrink: 0;
     flex-wrap: wrap;
@@ -622,7 +551,7 @@ export default {
     color: #56d9ff;
   }
 
-  > span:last-child {
+  >span:last-child {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -695,7 +624,7 @@ export default {
     border: 1px solid transparent;
     border-radius: 5px;
 
-    > span {
+    >span {
       width: 25px;
       height: 25px;
       display: flex;
@@ -716,7 +645,7 @@ export default {
       color: #d4f4ff;
     }
 
-    &.answered > span {
+    &.answered>span {
       background: #125e80;
     }
   }
@@ -727,6 +656,7 @@ export default {
     align-items: flex-start;
     flex-direction: column;
   }
+
   .question-status {
     padding: 14px;
     gap: 12px;
@@ -760,7 +690,7 @@ export default {
     bottom: 0;
     background: #0b2337;
 
-    > .small {
+    >.small {
       display: none;
     }
   }

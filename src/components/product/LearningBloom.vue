@@ -2,48 +2,20 @@
   <div class="learning-bloom" :data-phase="phase" aria-hidden="true">
     <svg viewBox="0 0 100 130" fill="none">
       <g class="bloom-floating">
-        <ellipse
-          class="bloom-base"
-          cx="50"
-          cy="115"
-          rx="30"
-          ry="5"
-          fill="#55c4dc"
-          fill-opacity=".06"
-        />
-        <g
-          class="bloom-book"
-          stroke="#77c8dd"
-          stroke-width="1.2"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M50 108C40 101 29 102 20 104V86C30 84 40 85 50 92C60 85 70 84 80 86V104C70 102 60 101 50 108Z"
-            fill="#0b3044"
-          />
-          <path
-            d="M50 92V108M26 92C32 91 39 93 44 96M56 96C61 93 68 91 74 92"
-          />
+        <ellipse class="bloom-base" cx="50" cy="115" rx="30" ry="5" fill="#55c4dc" fill-opacity=".06" />
+        <g class="bloom-book" stroke="#77c8dd" stroke-width="1.2" stroke-linejoin="round">
+          <path d="M50 108C40 101 29 102 20 104V86C30 84 40 85 50 92C60 85 70 84 80 86V104C70 102 60 101 50 108Z"
+            fill="#0b3044" />
+          <path d="M50 92V108M26 92C32 91 39 93 44 96M56 96C61 93 68 91 74 92" />
         </g>
         <g class="bloom-stems" stroke-linecap="round" stroke-width="1.2">
           <path d="M50 90V29" stroke="#62d5e8" />
-          <path
-            d="M50 73C36 71 30 63 27 52M50 57C63 55 70 46 73 34"
-            stroke="#418eab"
-          />
+          <path d="M50 73C36 71 30 63 27 52M50 57C63 55 70 46 73 34" stroke="#418eab" />
           <path d="M50 43C44 41 40 37 38 31" stroke="#c3a77a" />
         </g>
         <g class="bloom-leaves" stroke-width="1.2">
-          <path
-            d="M27 52C15 49 16 38 16 38C27 38 31 43 27 52Z"
-            fill="#153e51"
-            stroke="#71c4da"
-          />
-          <path
-            d="M73 34C70 24 78 20 84 19C85 28 81 34 73 34Z"
-            fill="#153e51"
-            stroke="#71c4da"
-          />
+          <path d="M27 52C15 49 16 38 16 38C27 38 31 43 27 52Z" fill="#153e51" stroke="#71c4da" />
+          <path d="M73 34C70 24 78 20 84 19C85 28 81 34 73 34Z" fill="#153e51" stroke="#71c4da" />
           <circle cx="50" cy="26" r="4" fill="#70d8e7" />
           <circle cx="37" cy="29" r="2.5" fill="#d0b58b" />
         </g>
@@ -179,6 +151,7 @@ export default {
   height: 130px;
   margin: 0 auto 16px;
   pointer-events: none;
+
   svg {
     display: block;
     width: 100%;

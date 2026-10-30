@@ -1,5 +1,7 @@
 <template>
-  <footer class="public-footer"><slot /></footer>
+  <footer class="public-footer">
+    <slot />
+  </footer>
 </template>
 <script>
 export default { name: 'PublicFooter' }
@@ -19,12 +21,14 @@ export default { name: 'PublicFooter' }
   color: #83a8c8;
   font-size: 12px;
 }
+
 @media (max-width: 767px) {
   .public-footer {
     padding: 20px;
     flex-wrap: wrap;
     font-size: 10px;
     gap: 15px;
+
     .brand {
       display: none;
     }

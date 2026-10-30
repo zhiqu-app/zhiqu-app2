@@ -19,16 +19,10 @@
         <button :class="{ active: filter === 'all' }" @click="filter = 'all'">
           全部错题
         </button>
-        <button
-          :class="{ active: filter === 'pending' }"
-          @click="filter = 'pending'"
-        >
+        <button :class="{ active: filter === 'pending' }" @click="filter = 'pending'">
           待巩固
         </button>
-        <button
-          :class="{ active: filter === 'reviewed' }"
-          @click="filter = 'reviewed'"
-        >
+        <button :class="{ active: filter === 'reviewed' }" @click="filter = 'reviewed'">
           已复习
         </button>
       </div>
@@ -36,25 +30,15 @@
     </div>
     <div class="mistakes-layout">
       <section class="panel mistake-list">
-        <button
-          v-for="q in filtered"
-          :key="q.id"
-          class="mistake-item"
-          :class="{ active: selectedId === q.id }"
-          @click="selectedId = q.id"
-        >
+        <button v-for="q in filtered" :key="q.id" class="mistake-item" :class="{ active: selectedId === q.id }"
+          @click="selectedId = q.id">
           <span class="badge" :class="{ amber: !q.reviewed }">{{
             q.reviewed ? "已复习" : "待巩固"
           }}</span>
           <h3>{{ q.title }}</h3>
-          <span class="muted small"
-            >{{ q.point }} · 错误 {{ q.wrongCount }} 次</span
-          >
+          <span class="muted small">{{ q.point }} · 错误 {{ q.wrongCount }} 次</span>
         </button>
-        <div
-          v-if="!loading && !loadError && !filtered.length"
-          class="empty-state"
-        >
+        <div v-if="!loading && !loadError && !filtered.length" class="empty-state">
           <AppIcon name="check" :size="40" />
           <h2>{{ mistakes.length ? "没有匹配的错题" : "还没有错题记录" }}</h2>
           <p>完成一次练习，记录就会出现在这里。</p>
@@ -64,15 +48,10 @@
         <span class="badge amber">{{ selected.point }}</span>
         <h2>{{ selected.title }}</h2>
         <div class="answer-options">
-          <div
-            v-for="(option, i) in selected.options"
-            :key="i"
-            class="answer-option"
-            :class="{
-              correct: i === selected.answer,
-              wrong: i === selected.lastWrong.choice,
-            }"
-          >
+          <div v-for="(option, i) in selected.options" :key="i" class="answer-option" :class="{
+            correct: i === selected.answer,
+            wrong: i === selected.lastWrong.choice,
+          }">
             <span class="option-letter">{{ "ABCDEF"[i] }}</span>
             {{ option }}
             <AppIcon v-if="i === selected.answer" name="check" :size="16" />
@@ -158,7 +137,7 @@ export default {
         let draft = {};
         try {
           draft = JSON.parse(sessionStorage.getItem(key)) || {};
-        } catch (_) {}
+        } catch (_) { }
         if (draft.answers) delete draft.answers[q.id];
         if (draft.pendingSubmission?.questionId === q.id)
           draft.pendingSubmission = null;
@@ -219,11 +198,11 @@ export default {
     margin: 18px 0 25px;
   }
 
-  > h3 {
+  >h3 {
     margin: 25px 0 10px;
   }
 
-  > p {
+  >p {
     color: #b1cfe7;
   }
 

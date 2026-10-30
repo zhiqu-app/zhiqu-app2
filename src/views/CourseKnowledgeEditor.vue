@@ -2,24 +2,14 @@
   <div>
     <header class="page-heading graph-editor-heading">
       <div>
-        <router-link
-          :to="course ? '/app/courses/' + course.id : '/app/courses'"
-          class="text-button"
-          >返回课程</router-link
-        >
+        <router-link :to="course ? '/app/courses/' + course.id : '/app/courses'" class="text-button">返回课程</router-link>
         <h1>配置课程知识星图</h1>
         <p>
-          {{
-            course ? course.name : "先选择一门课程"
-          }}：先自定义大知识点，再添加小知识点和先后关系。
+          {{ course ? course.name : "先选择一门课程" }}：先自定义大知识点，再添加小知识点和先后关系。
         </p>
       </div>
-      <button
-        v-if="course && course._remote && !loading && !loadError"
-        class="button primary"
-        :disabled="saving"
-        @click="save"
-      >
+      <button v-if="course && course._remote && !loading && !loadError" class="button primary" :disabled="saving"
+        @click="save">
         {{ saving ? "正在保存…" : "保存课程星图" }}
       </button>
     </header>
@@ -37,84 +27,39 @@
     <div v-else-if="course" class="graph-editor-layout">
       <form class="panel graph-editor-form" @submit.prevent="save">
         <fieldset :disabled="saving">
-          <label class="field-label" for="graph-title">星图标题</label
-          ><input
-            id="graph-title"
-            v-model="title"
-            class="input"
-            maxlength="80"
-            required
-          />
-          <label class="field-label" for="graph-goal"
-            >课程学习目标（选填）</label
-          ><textarea
-            id="graph-goal"
-            v-model="goal"
-            class="input"
-            maxlength="180"
-            rows="2"
-            placeholder="例如：完成抓包实验，理解可靠传输"
-          />
+          <label class="field-label" for="graph-title">星图标题</label><input id="graph-title" v-model="title" class="input"
+            maxlength="80" required />
+          <label class="field-label" for="graph-goal">课程学习目标（选填）</label><textarea id="graph-goal" v-model="goal"
+            class="input" maxlength="180" rows="2" placeholder="例如：完成抓包实验，理解可靠传输" />
           <div class="editor-section-heading">
             <h2>
               自定义大知识点
               <small>全课程 {{ nodes.length }}/50 个小知识点</small>
             </h2>
-            <button
-              type="button"
-              class="text-button"
-              :disabled="groups.length >= 50"
-              @click="addGroup"
-            >
+            <button type="button" class="text-button" :disabled="groups.length >= 50" @click="addGroup">
               新增大知识点
             </button>
           </div>
           <nav class="editor-group-list" aria-label="编辑大知识点">
-            <button
-              v-for="group in groups"
-              :key="group.id"
-              type="button"
-              class="editor-group-choice"
-              :aria-current="activeGroupId === group.id ? 'true' : null"
-              @click="switchGroup(group.id)"
-            >
-              <span>{{ group.title || "未命名大知识点" }}</span
-              ><small>{{ groupCount(group.id) }}/6</small>
+            <button v-for="group in groups" :key="group.id" type="button" class="editor-group-choice"
+              :aria-current="activeGroupId === group.id ? 'true' : null" @click="switchGroup(group.id)">
+              <span>{{ group.title || "未命名大知识点" }}</span><small>{{ groupCount(group.id) }}/6</small>
             </button>
           </nav>
           <div v-if="currentGroup" class="group-editor-meta">
             <label class="field-label" for="group-title">大知识点名称</label>
-            <input
-              id="group-title"
-              v-model="currentGroup.title"
-              class="input"
-              maxlength="80"
-              required
-              placeholder="例如：可靠传输，不必按教材章节命名"
-            />
+            <input id="group-title" v-model="currentGroup.title" class="input" maxlength="80" required
+              placeholder="例如：可靠传输，不必按教材章节命名" />
             <div class="group-editor-actions">
-              <button
-                type="button"
-                class="text-button"
-                :disabled="groups[0].id === activeGroupId"
-                @click="reorderGroup(-1)"
-              >
+              <button type="button" class="text-button" :disabled="groups[0].id === activeGroupId"
+                @click="reorderGroup(-1)">
                 上移大知识点
               </button>
-              <button
-                type="button"
-                class="text-button"
-                :disabled="groups[groups.length - 1].id === activeGroupId"
-                @click="reorderGroup(1)"
-              >
+              <button type="button" class="text-button" :disabled="groups[groups.length - 1].id === activeGroupId"
+                @click="reorderGroup(1)">
                 下移大知识点
               </button>
-              <button
-                type="button"
-                class="text-button"
-                :disabled="activeNodes.length > 0"
-                @click="removeGroup"
-              >
+              <button type="button" class="text-button" :disabled="activeNodes.length > 0" @click="removeGroup">
                 删除空大知识点
               </button>
             </div>
@@ -127,14 +72,8 @@
             <h2>
               包含的小知识点 <small>{{ activeNodes.length }}/6</small>
             </h2>
-            <button
-              type="button"
-              class="text-button"
-              :disabled="
-                !currentGroup || activeNodes.length >= 6 || nodes.length >= 50
-              "
-              @click="addNode"
-            >
+            <button type="button" class="text-button" :disabled="!currentGroup || activeNodes.length >= 6 || nodes.length >= 50
+              " @click="addNode">
               添加小知识点
             </button>
           </div>
@@ -145,93 +84,39 @@
           <p v-if="!activeNodes.length" class="muted">
             当前大知识点还没有内容，先添加一个小知识点。
           </p>
-          <article
-            v-for="(node, index) in activeNodes"
-            :key="node.id"
-            class="node-editor"
-          >
+          <article v-for="(node, index) in activeNodes" :key="node.id" class="node-editor">
             <div class="node-editor-heading">
-              <strong>小知识点 {{ index + 1 }}</strong
-              ><button
-                type="button"
-                class="text-button"
-                :aria-label="'删除知识点 ' + (index + 1)"
-                @click="removeNode(node.id)"
-              >
+              <strong>小知识点 {{ index + 1 }}</strong><button type="button" class="text-button"
+                :aria-label="'删除知识点 ' + (index + 1)" @click="removeNode(node.id)">
                 删除
               </button>
             </div>
-            <label class="field-label" :for="'node-label-' + node.id"
-              >小知识点名称 {{ index + 1 }}</label
-            ><input
-              :id="'node-label-' + node.id"
-              v-model="node.label"
-              class="input"
-              maxlength="80"
-              required
-              placeholder="例如：确认机制、超时重传、滑动窗口"
-            />
-            <label class="field-label" :for="'node-group-' + node.id"
-              >所属大知识点</label
-            >
-            <select
-              :id="'node-group-' + node.id"
-              :value="node.groupId"
-              class="input node-group-select"
-              @change="moveNode(node, $event)"
-            >
+            <label class="field-label" :for="'node-label-' + node.id">小知识点名称 {{ index + 1 }}</label><input
+              :id="'node-label-' + node.id" v-model="node.label" class="input" maxlength="80" required
+              placeholder="例如：确认机制、超时重传、滑动窗口" />
+            <label class="field-label" :for="'node-group-' + node.id">所属大知识点</label>
+            <select :id="'node-group-' + node.id" :value="node.groupId" class="input node-group-select"
+              @change="moveNode(node, $event)">
               <option v-for="group in groups" :key="group.id" :value="group.id">
                 {{ group.title || "未命名大知识点" }}
               </option>
             </select>
-            <label class="field-label" :for="'node-description-' + node.id"
-              >知识点说明 {{ index + 1 }}</label
-            ><textarea
-              :id="'node-description-' + node.id"
-              v-model="node.description"
-              class="input"
-              rows="2"
-              maxlength="5000"
-              placeholder="要理解什么，准备做什么"
-            />
-            <label class="field-label" :for="'node-task-' + node.id"
-              >关联任务 {{ index + 1 }}</label
-            ><select
-              :id="'node-task-' + node.id"
-              v-model="node.taskId"
-              class="input"
-            >
+            <label class="field-label" :for="'node-description-' + node.id">知识点说明 {{ index + 1 }}</label><textarea
+              :id="'node-description-' + node.id" v-model="node.description" class="input" rows="2" maxlength="5000"
+              placeholder="要理解什么，准备做什么" />
+            <label class="field-label" :for="'node-task-' + node.id">关联任务 {{ index + 1 }}</label><select
+              :id="'node-task-' + node.id" v-model="node.taskId" class="input">
               <option :value="null">不关联任务</option>
-              <option
-                v-for="task in availableTasks"
-                :key="task.id"
-                :value="task.id"
-              >
+              <option v-for="task in availableTasks" :key="task.id" :value="task.id">
                 {{ task.title }}{{ task.done ? "（已完成）" : "" }}
               </option>
             </select>
             <details class="node-position">
               <summary>调整节点位置（选填）</summary>
               <div class="form-grid">
-                <label
-                  >横坐标<input
-                    v-model.number="node.x"
-                    class="input"
-                    type="number"
-                    min="0"
-                    max="760"
-                    step="1"
-                    required /></label
-                ><label
-                  >纵坐标<input
-                    v-model.number="node.y"
-                    class="input"
-                    type="number"
-                    min="0"
-                    max="300"
-                    step="1"
-                    required
-                /></label>
+                <label>横坐标<input v-model.number="node.x" class="input" type="number" min="0" max="760" step="1"
+                    required /></label><label>纵坐标<input v-model.number="node.y" class="input" type="number" min="0"
+                    max="300" step="1" required /></label>
               </div>
             </details>
           </article>
@@ -244,71 +129,36 @@
           </p>
           <div class="editor-section-heading">
             <h2>先后关系</h2>
-            <button
-              type="button"
-              class="text-button"
-              :disabled="!activeNodes.length"
-              @click="arrange"
-            >
+            <button type="button" class="text-button" :disabled="!activeNodes.length" @click="arrange">
               自动排布当前组
             </button>
           </div>
           <div class="edge-inputs">
-            <label
-              >连线起点<select
-                v-model="source"
-                class="input"
-                aria-label="连线起点"
-              >
+            <label>连线起点<select v-model="source" class="input" aria-label="连线起点">
                 <option value="">选择起点</option>
-                <option
-                  v-for="(node, i) in nodes"
-                  :key="node.id"
-                  :value="node.id"
-                >
+                <option v-for="(node, i) in nodes" :key="node.id" :value="node.id">
                   {{ groupTitle(node.groupId) }} /
                   {{ node.label || "未命名知识点 " + (i + 1) }}
                 </option>
-              </select></label
-            ><label
-              >连线终点<select
-                v-model="target"
-                class="input"
-                aria-label="连线终点"
-              >
+              </select>
+            </label>
+            <label>连线终点<select v-model="target" class="input" aria-label="连线终点">
                 <option value="">选择终点</option>
-                <option
-                  v-for="(node, i) in nodes"
-                  :key="node.id"
-                  :value="node.id"
-                >
+                <option v-for="(node, i) in nodes" :key="node.id" :value="node.id">
                   {{ groupTitle(node.groupId) }} /
                   {{ node.label || "未命名知识点 " + (i + 1) }}
                 </option>
-              </select></label
-            ><button
-              type="button"
-              class="button secondary"
-              :disabled="!source || !target || links.length >= 150"
-              @click="addLink"
-            >
+              </select>
+            </label>
+            <button type="button" class="button secondary" :disabled="!source || !target || links.length >= 150"
+              @click="addLink">
               添加连接
             </button>
           </div>
           <ul class="edge-list">
-            <li
-              v-for="(link, i) in visibleLinks"
-              :key="link.source + ':' + link.target"
-            >
-              <span>{{ label(link.source) }} → {{ label(link.target) }}</span
-              ><button
-                type="button"
-                class="text-button"
-                :aria-label="'删除连接 ' + (i + 1)"
-                @click="removeLink(link)"
-              >
-                移除
-              </button>
+            <li v-for="(link, i) in visibleLinks" :key="link.source + ':' + link.target">
+              <span>{{ label(link.source) }} → {{ label(link.target) }}</span>
+              <button type="button" class="text-button" :aria-label="'删除连接 ' + (i + 1)" @click="removeLink(link)">移除</button>
             </li>
           </ul>
           <p v-if="!visibleLinks.length" class="muted small">
@@ -319,11 +169,7 @@
         <button v-if="conflict" type="button" class="text-button" @click="load">
           重新加载最新星图（替换未保存内容）
         </button>
-        <button
-          class="button primary full-width"
-          type="submit"
-          :disabled="saving"
-        >
+        <button class="button primary full-width" type="submit" :disabled="saving">
           {{ saving ? "正在保存…" : "保存课程星图" }}
         </button>
       </form>
@@ -333,14 +179,9 @@
         <p class="muted">
           {{ goal || "知识点由你设定，连接表示学习的先后顺序。" }}
         </p>
-        <GroupedKnowledgeGraph
-          v-if="groups.length"
-          :graph="previewGraph"
-          :group="activeGroupId"
-          :selected="selectedNode ? selectedNode.id : ''"
-          @group="activeGroupId = $event"
-          @select="selectedId = $event ? $event.id : ''"
-        />
+        <GroupedKnowledgeGraph v-if="groups.length" :graph="previewGraph" :group="activeGroupId"
+          :selected="selectedNode ? selectedNode.id : ''" @group="activeGroupId = $event"
+          @select="selectedId = $event ? $event.id : ''" />
         <div v-else class="editor-preview-empty">
           <AppIcon name="graph" :size="44" />
           <p>添加知识点后，在这里查看连接。</p>
@@ -348,13 +189,10 @@
         <div v-if="selectedNode" class="node-preview-detail">
           <strong>{{ selectedNode.label || "未命名知识点" }}</strong>
           <p>
-            {{
-              selectedNode.description || "可在左侧补充这个知识点的学习要求。"
-            }}
+            {{selectedNode.description || "可在左侧补充这个知识点的学习要求。"}}
           </p>
           <p v-if="selectedTask" class="badge">
-            关联任务：{{ selectedTask.title
-            }}{{ selectedTask.done ? "（已完成）" : "" }}
+            关联任务：{{ selectedTask.title }}{{ selectedTask.done ? "（已完成）" : "" }}
           </p>
         </div>
         <p class="muted small">
@@ -664,6 +502,7 @@ export default {
 </script>
 <style lang="less" scoped>
 @import "../styles/tokens.less";
+
 /* 本课程编辑器的表单与预览布局；全局 input/button 等工具样式沿用项目原定义。 */
 .graph-editor-layout {
   display: grid;
@@ -671,25 +510,31 @@ export default {
   gap: 20px;
   align-items: start;
 }
+
 .graph-editor-form {
   padding: 24px;
+
   fieldset {
     border: 0;
     min-width: 0;
     margin: 0;
     padding: 0;
   }
+
   .input {
     width: 100%;
   }
+
   select {
     color: @text;
     background: @surface;
   }
+
   .full-width {
     margin-top: 18px;
   }
 }
+
 .editor-section-heading,
 .node-editor-heading {
   display: flex;
@@ -697,17 +542,21 @@ export default {
   justify-content: space-between;
   gap: 12px;
 }
+
 .editor-section-heading {
   margin: 28px 0 16px;
+
   h2 {
     margin: 0;
     font-size: 19px;
   }
+
   small {
     font-size: 12px;
     color: @muted;
   }
 }
+
 .node-editor {
   background: @surface-raised;
   border: 1px solid @border;
@@ -715,12 +564,14 @@ export default {
   border-radius: 6px;
   margin-bottom: 14px;
 }
+
 .editor-group-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0 20px;
 }
+
 .editor-group-choice {
   display: flex;
   align-items: center;
@@ -730,60 +581,75 @@ export default {
   border: 1px solid @border;
   border-radius: 5px;
   text-align: left;
+
   span {
     overflow-wrap: anywhere;
   }
+
   small {
     color: @muted;
     flex-shrink: 0;
   }
+
   &[aria-current="true"] {
     border-color: @cyan;
     background: fade(@cyan, 7%);
   }
 }
+
 .group-editor-meta {
   padding-bottom: 16px;
   border-bottom: 1px solid @border;
 }
+
 .group-editor-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
   margin: 12px 0;
 }
+
 .node-editor-heading {
   color: @cyan;
 }
+
 .node-position {
   color: @muted;
   font-size: 12px;
   margin-top: 16px;
+
   summary {
     cursor: pointer;
   }
+
   .form-grid {
     margin-top: 12px;
   }
 }
+
 .edge-inputs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+
   label {
     color: @muted;
     font-size: 13px;
   }
+
   select {
     margin-top: 8px;
   }
+
   .button {
     grid-column: 1 / -1;
   }
 }
+
 .edge-list {
   padding: 0;
   list-style: none;
+
   li {
     display: flex;
     justify-content: space-between;
@@ -794,68 +660,85 @@ export default {
     font-size: 13px;
   }
 }
+
 .editor-preview {
   position: sticky;
   top: 18px;
   padding: 24px;
+
   h2 {
     margin-top: 18px;
     overflow-wrap: anywhere;
   }
+
   p {
     line-height: 1.8;
     overflow-wrap: anywhere;
   }
 }
+
 .editor-preview-empty {
   display: grid;
   place-content: center;
   text-align: center;
   min-height: 240px;
   color: @muted;
+
   .app-icon {
     margin: 0 auto;
     color: @cyan;
   }
 }
+
 .node-preview-detail {
   border-left: 2px solid @amber;
   padding-left: 16px;
   margin-bottom: 28px;
+
   strong {
     color: @amber;
   }
+
   p {
     color: @muted;
     font-size: 13px;
   }
+
   .badge {
     white-space: normal;
   }
 }
+
 .editor-status {
   padding: 35px;
 }
+
 @media (max-width: 1050px) {
   .graph-editor-layout {
     grid-template-columns: 1fr;
   }
+
   .editor-preview {
     position: static;
   }
 }
+
 @media (max-width: 480px) {
+
   .graph-editor-form,
   .editor-preview {
     padding: 16px;
   }
+
   .node-editor {
     padding: 12px;
   }
+
   .graph-editor-heading {
     gap: 20px;
     align-items: stretch;
   }
+
   .edge-inputs {
     grid-template-columns: minmax(0, 1fr);
   }

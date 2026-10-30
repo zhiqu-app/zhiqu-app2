@@ -1,14 +1,7 @@
 <template>
   <div class="modal-backdrop" @click.self="$emit('close')" @keydown.esc.prevent="$emit('close')">
-    <section
-      ref="dialog"
-      class="app-modal panel"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="title"
-      tabindex="-1"
-      @keydown.tab="trap"
-    >
+    <section ref="dialog" class="app-modal panel" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1"
+      @keydown.tab="trap">
       <header>
         <h2>{{ title }}</h2>
         <button class="icon-button" aria-label="关闭弹窗" @click="$emit('close')">
@@ -29,7 +22,7 @@ export default {
     document.body.style.overflow = 'hidden'
     this.$nextTick(() => {
       const first = this.$refs.dialog.querySelector('input, button, select, textarea, a[href]')
-      ;(first || this.$refs.dialog).focus()
+        ; (first || this.$refs.dialog).focus()
     })
   },
   beforeDestroy() {
@@ -80,6 +73,7 @@ export default {
   justify-content: center;
   padding: 20px;
 }
+
 .app-modal {
   width: 560px;
   max-width: 100%;
@@ -87,20 +81,24 @@ export default {
   overflow-y: auto;
   padding: 26px;
   box-shadow: 0 20px 100px #0009;
-  > header {
+
+  >header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
     h2 {
       margin: 0;
     }
   }
 }
+
 @media (max-width: 767px) {
   .app-modal {
     padding: 20px;
     max-height: 86dvh;
   }
+
   .modal-backdrop {
     padding: 14px;
   }
