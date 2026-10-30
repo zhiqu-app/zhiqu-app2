@@ -254,8 +254,6 @@ export default {
   components: { AppModal },
   data: () => ({
     state,
-    filter: "pending",
-    kindFilter: "all",
     editing: false,
     deleteTarget: null,
     busy: false,
@@ -275,6 +273,27 @@ export default {
     ],
   }),
   computed: {
+    // 筛选由路由保存，消息跳转、同页切换及刷新使用同一份状态。
+    filter: {
+      get() {
+        const value = this.$route.query.filter;
+        return this.filters.some((item) => item.key === value)
+          ? value
+          : "pending";
+      },
+      set(value) {
+        this.setFilterQuery({ filter: value });
+      },
+    },
+    kindFilter: {
+      get() {
+        const value = this.$route.query.kind;
+        return ["custom", "exercise"].includes(value) ? value : "all";
+      },
+      set(value) {
+        this.setFilterQuery({ kind: value });
+      },
+    },
     validSubtasks() {
       return (
         this.form.subtasks?.length >= 1 &&
@@ -314,6 +333,14 @@ export default {
     },
   },
   methods: {
+    setFilterQuery(values) {
+      this.$router
+        .replace({
+          path: this.$route.path,
+          query: { ...this.$route.query, ...values },
+        })
+        .catch(() => {});
+    },
     formatTime(value) {
       const time = new Date(value);
       return Number.isNaN(time.getTime())

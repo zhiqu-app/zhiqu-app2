@@ -52,11 +52,10 @@
               }}</span>
             </div>
             <div class="notification-item-actions">
-              <button class="text-button" @click="openTask(item)">
-                {{ item.taskDone ? "查看完成任务" : "查看任务" }}</button><button v-if="!item.read" class="text-button"
-                @click="read(item.id)">
-                标为已读
+              <button class="text-button" :disabled="!!openingTaskId" @click="openTask(item)">
+                {{ item.taskDone ? "查看已完成任务" : "查看任务" }}
               </button>
+              <button v-if="!item.read" class="text-button" @click="read(item.id)">标为已读</button>
             </div>
           </div>
         </li>
@@ -78,7 +77,7 @@
 </template>
 <script>
 import { state } from "../store";
-import { accountScope } from "../services/courses";
+import { accountScope, getTask } from "../services/courses";
 import { motionAllowed } from "../utils/motion";
 import {
   notificationState,
@@ -93,6 +92,7 @@ export default {
   data: () => ({
     feed: notificationState,
     open: false,
+    openingTaskId: "",
     bellRinging: false,
     filter: "all",
     filters: [
@@ -237,13 +237,36 @@ export default {
       return readAllNotifications();
     },
     async openTask(item) {
-      if (!item.read) await this.read(item.id);
-      this.close();
-      const target =
-        typeof item.target === "string" && item.target.startsWith("/app/")
-          ? item.target
-          : "/app/plan";
-      this.$router.push(target).catch(() => { });
+      if (this.openingTaskId) return;
+      const identity = this.identity;
+      this.openingTaskId = item.id;
+      this.feed.error = "";
+      try {
+        if (typeof item.taskId !== "string" || !item.taskId)
+          throw new Error("提醒缺少关联任务，请刷新提醒记录。");
+        // 通知中的 target 和 taskDone 可能已过时，以当前账号的最新任务为准。
+        const task = await getTask(item.taskId);
+        if (identity !== this.identity) return;
+        const target = task.done
+          ? { path: "/app/plan", query: { filter: "done" } }
+          : task.kind === "exercise"
+            ? {
+                path: "/app/practice",
+                query: { task: task.id, course: task.courseId },
+              }
+            : { path: "/app/plan", query: { filter: "pending" } };
+        if (!item.read) await this.read(item.id);
+        if (identity !== this.identity) return;
+        this.close();
+        await this.$router.push(target).catch((error) => {
+          if (error.name !== "NavigationDuplicated") throw error;
+        });
+      } catch (error) {
+        if (identity === this.identity && error.name !== "AbortError")
+          this.feed.error = error.message || "任务读取失败，请稍后重试。";
+      } finally {
+        this.openingTaskId = "";
+      }
     },
     dateLabel(value) {
       const date = new Date(value);
