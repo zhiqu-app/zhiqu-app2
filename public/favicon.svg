@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>知序 AI学习空间</title>
+  <rect width="64" height="64" rx="15" fill="#061727"/>
+  <path d="M11 19L29 28V51L11 42V19Z" fill="#389CFF"/>
+  <path d="M35 28L53 19V42L35 51V28Z" fill="#66D9EF"/>
+  <path d="M14 12L32 21L50 12" stroke="#389CFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M17 29L24 32.5V40" stroke="#061727" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M47 29L40 32.5V40" stroke="#061727" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
