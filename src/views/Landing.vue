@@ -31,11 +31,11 @@
             {{ busy ? "正在进入…" : "进入学习空间" }}
             <AppIcon name="arrow" :size="18" />
           </button>
-          <a href="#workflow" class="product-explore" @click.prevent="explore">
-            <span>
+          <button type="button" class="product-explore" @click="$refs.story.startGuide()">
+            <span aria-hidden="true">
               <AppIcon name="play" :size="13" />
-            </span>了解学习流程
-          </a>
+            </span>跟着示例走一遍
+          </button>
         </div>
         <p v-if="error" class="error-message" role="alert">{{ error }}</p>
         <p class="hero-footnote">从你的课程出发，按自己的节奏学习。</p>
@@ -61,7 +61,8 @@
         <AppIcon name="calendar" :size="22" /><span>持续的积累<small>练习、错题，连接复习</small></span>
       </div>
     </section>
-    <LearningStory :enabled="!introOpen && !opening" :inert="introOpen ? '' : null" />
+    <LearningStory ref="story" :enabled="!introOpen && !opening" :inert="introOpen ? '' : null"
+      @enter-workspace="experience" />
     <section class="product-closing" :inert="introOpen ? '' : null">
       <LearningBloom :enabled="motionReady" />
       <p>从理解到掌握</p>
@@ -535,6 +536,10 @@ export default {
   align-items: center;
   font-size: 11px;
   color: #b0c9db;
+  min-height: 44px;
+  text-align: left;
+
+  &:hover, &:focus-visible { color: #e3f5ff; }
 
   span {
     display: grid;

@@ -18,6 +18,9 @@ async function authenticate(path, body) {
 export const api = {
   onlineDemo: () => authenticate("/auth/demo", {}),
   sendEmailCode: (email) => request("/auth/email-code", { method: "POST", body: { email } }),
+  sendPasswordResetCode: (email) =>
+    request("/auth/password-reset/code", { method: "POST", body: { email } }),
+  resetPassword: (body) => request("/auth/password-reset", { method: "POST", body }),
   register: (body) => authenticate("/auth/register", body),
   login: (body) => authenticate("/auth/login", body),
   me: () => request("/auth/me"),

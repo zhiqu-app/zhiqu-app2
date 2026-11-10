@@ -5,6 +5,7 @@ import Landing from "../views/Landing.vue";
 import Workspace from "../layouts/Workspace.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
+import ForgotPassword from "../views/ForgotPassword.vue";
 import {
   beginNavigation,
   completeNavigation,
@@ -30,6 +31,11 @@ const router = new Router({
     },
     { path: "/login", component: Login, meta: { title: "登录" } },
     { path: "/register", component: Register, meta: { title: "邮箱注册" } },
+    {
+      path: "/forgot-password",
+      component: ForgotPassword,
+      meta: { title: "找回密码" },
+    },
     {
       path: "/setup-knowledge",
       redirect: "/app/courses",

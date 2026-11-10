@@ -9,7 +9,7 @@
         <button class="button secondary" @click="importCourse">
           <AppIcon name="upload" :size="18" />导入资料
         </button>
-        <button class="button primary" @click="showCreate = true">
+        <button ref="createButton" class="button primary" @click="showCreate = true">
           <AppIcon name="plus" />新建课程
         </button>
       </div>
@@ -73,7 +73,7 @@
         </section>
       </aside>
     </div>
-    <AppModal v-if="showCreate" title="新建课程" @close="showCreate = false">
+    <AppModal v-if="showCreate" title="新建课程" @close="closeCreate">
       <form @submit.prevent="create">
         <p v-if="createError" class="error-message" role="alert">
           {{ createError }}
@@ -85,7 +85,7 @@
         <label class="field-label" for="course-description">课程简介（选填）</label>
         <textarea id="course-description" v-model.trim="form.description" class="input" rows="3" maxlength="180" />
         <div class="modal-actions">
-          <button class="button secondary" type="button" @click="showCreate = false">
+          <button class="button secondary" type="button" @click="closeCreate">
             取消
           </button>
           <button class="button primary" :disabled="busy || !form.name">
@@ -118,7 +118,7 @@ export default {
       state,
       search: this.$route.query.q || "",
       filter: "all",
-      showCreate: false,
+      showCreate: this.$route.query.new === "1",
       deleteTarget: null,
       deleting: false,
       deleteError: "",
@@ -154,8 +154,17 @@ export default {
     "$route.query.q"(q) {
       this.search = q || "";
     },
+    "$route.query.new"(value) {
+      if (value === "1") this.showCreate = true;
+    },
   },
   methods: {
+    closeCreate() {
+      if (this.busy) return;
+      this.showCreate = false;
+      if (this.$route.query.new === "1")
+        this.$nextTick(() => this.$refs.createButton?.focus({ preventScroll: true }));
+    },
     closeDelete() {
       if (!this.deleting) this.deleteTarget = null;
     },

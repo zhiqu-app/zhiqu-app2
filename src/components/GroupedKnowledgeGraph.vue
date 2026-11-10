@@ -15,8 +15,9 @@
         <span class="muted small">包含 {{ slice.nodes.length }} 个小知识点</span>
       </div>
       <div v-if="slice.nodes.length" class="group-canvas" aria-label="大知识点星图">
-        <KnowledgeGraph :key="currentGroupId" :title="currentGroup.title" :nodes="slice.nodes" :edges="slice.edges"
-          :selected="localSelected" @select="chooseNode" />
+        <CanvasKnowledgeGraph :key="currentGroupId" :title="currentGroup.title" :nodes="slice.nodes" :edges="slice.edges"
+          :selected="localSelected" :editable="editable" @select="chooseNode"
+          @position-node="$emit('position-node', $event)" @delete-node="$emit('delete-node', $event)" />
       </div>
       <p v-else class="group-empty muted">
         这个大知识点还没有内容，可在配置课程星图中添加小知识点。
@@ -42,7 +43,7 @@
   </div>
 </template>
 <script>
-import KnowledgeGraph from "./KnowledgeGraph.vue";
+import CanvasKnowledgeGraph from "./CanvasKnowledgeGraph.vue";
 import {
   normalizeGroups,
   groupSlice,
@@ -50,11 +51,12 @@ import {
 } from "../utils/knowledgeGroups";
 export default {
   name: "GroupedKnowledgeGraph",
-  components: { KnowledgeGraph },
+  components: { CanvasKnowledgeGraph },
   props: {
     graph: { type: Object, required: true },
     selected: { type: String, default: "" },
     group: { type: String, default: "" },
+    editable: Boolean,
   },
   data: () => ({ currentGroupId: "", localSelected: "" }),
   computed: {
@@ -232,11 +234,6 @@ export default {
   padding: 24px 0 0;
   scrollbar-width: thin;
   scrollbar-color: @border transparent;
-
-  >.knowledge-graph {
-    width: 100%;
-    min-width: 0;
-  }
 
   &:focus-visible {
     outline: 1px solid @cyan;

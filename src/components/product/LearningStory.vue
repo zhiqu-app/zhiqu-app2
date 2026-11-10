@@ -4,8 +4,12 @@
       <p><span />从这一页，到下一步</p>
       <h2 id="story-heading">让学习的每一步，<br />都有下一步。</h2>
       <span>向下探索，也可以点击步骤直接查看。</span>
+      <button v-if="!guided" type="button" class="start-guide" @click="startGuide">
+        <AppIcon name="play" :size="13" />{{ guideProgress.includes(true) ? "继续操作引导" : "开启操作引导" }}
+      </button>
     </div>
-    <div class="story-layout">
+    <p v-if="guided" class="sr-only" role="status">已完成 {{ guideCount }} 个操作，共四步</p>
+    <div ref="layout" class="story-layout">
       <div class="story-copy">
         <article v-for="(item, i) in steps" :key="item.name" ref="steps" class="story-step"
           :class="{ active: active === i }" :data-step="i">
@@ -19,17 +23,26 @@
               </span>
             </span>
           </button>
-          <ProductDemo v-if="narrow" :step="i" />
+          <ProductDemo v-if="narrow" ref="mobileDemos" :step="i" :selected="selectedNode"
+            :guide="guided ? guideProgress : null" @guide-action="markGuide" @exit-guide="exitGuide(i)"
+            @enter-workspace="$emit('enter-workspace')"
+            @select-node="selectedNode = $event" @advance="advance" @source="showSource" />
         </article>
       </div>
-      <div v-if="!narrow" class="story-stage" :data-step="active">
+      <div v-if="!narrow" ref="stage" class="story-stage" :data-step="active">
         <div class="story-stage-label">
           <span>从一份线性代数讲义出发</span><span>{{ String(active + 1).padStart(2, "0") }} / 04</span>
         </div>
-        <ProductDemo :step="active" />
-        <div class="story-stage-track" aria-hidden="true">
-          <i v-for="n in 4" :key="n" :class="{ active: n - 1 === active }" />
-        </div>
+        <ProductDemo ref="desktopDemo" contained :step="active" :selected="selectedNode"
+          :guide="guided ? guideProgress : null" @guide-action="markGuide" @exit-guide="exitGuide(active)"
+          @enter-workspace="$emit('enter-workspace')"
+          @select-node="selectedNode = $event" @advance="advance" @source="showSource" />
+        <nav class="story-stage-track" aria-label="学习演示章节">
+          <button v-for="(label, i) in chapterLabels" :key="label" type="button"
+            :aria-current="active === i ? 'step' : null" @click="choose(i)">
+            <span aria-hidden="true">{{ String(i + 1).padStart(2, '0') }}</span>{{ label }}
+          </button>
+        </nav>
       </div>
     </div>
   </section>
@@ -42,22 +55,30 @@ import { motionAllowed } from "../../utils/motion";
 import { createTextReveals } from "../../utils/textMotion";
 import ProductDemo from "./ProductDemo.vue";
 gsap.registerPlugin(ScrollTrigger);
+
 export default {
   name: "LearningStory",
   components: { ProductDemo },
   props: { enabled: { type: Boolean, default: true } },
   data: () => ({
     steps: productSteps,
+    chapterLabels: ["资料", "星图", "答疑", "练习"],
+    selectedNode: "product-eigen",
+    guided: false,
+    guideProgress: [false, false, false, false],
     active: 0,
-    narrow: matchMedia("(max-width:900px)").matches,
+    narrow: matchMedia("(max-width: 900px), (max-height: 600px)").matches,
   }),
   computed: {
+    guideCount() {
+      return this.guideProgress.filter(Boolean).length;
+    },
     allowMotion() {
       return motionAllowed();
     },
   },
   mounted() {
-    this._media = matchMedia("(max-width:900px)");
+    this._media = matchMedia("(max-width: 900px), (max-height: 600px)");
     this._change = () => {
       this.narrow = this._media.matches;
       this.$nextTick(this.observe);
@@ -82,6 +103,7 @@ export default {
     observe() {
       if (this._isDestroyed || this._isBeingDestroyed) return;
       this._context?.revert();
+      this._chapterScroll = null;
       this._textCleanup?.();
       this._textCleanup = null;
       if (!this.enabled) return;
@@ -92,27 +114,59 @@ export default {
         );
       if (this.narrow) return;
       this._context = gsap.context(() => {
-        this.$refs.steps.forEach((element, index) =>
-          ScrollTrigger.create({
-            trigger: element,
-            start: "top 62%",
-            end: "bottom 62%",
-            onEnter: () => {
-              this.active = index;
-            },
-            onEnterBack: () => {
-              this.active = index;
-            },
-          }),
-        );
+        const { layout, stage } = this.$refs;
+        const stickyTop = () => parseFloat(getComputedStyle(stage).top);
+        // 用舞台可以完整停留在屏幕内的区间划分四章。
+        this._chapterScroll = ScrollTrigger.create({
+          trigger: layout,
+          start: () => `top ${stickyTop()}px`,
+          end: () => `bottom ${stickyTop() + stage.offsetHeight}px`,
+          onUpdate: ({ progress }) => {
+            this.active = Math.min(this.steps.length - 1, Math.floor(progress * this.steps.length));
+          },
+        });
       }, this.$el);
       ScrollTrigger.refresh();
     },
-    choose(i) {
+    advance(i) {
+      if (i === 1) this.selectedNode = "product-eigen";
+      this.choose(i, "heading");
+    },
+    startGuide() {
+      this.guided = true;
+      const first = this.guideProgress.indexOf(false);
+      this.choose(first < 0 ? this.steps.length - 1 : first, "heading");
+    },
+    markGuide(i) {
+      if (!this.guideProgress[i]) this.$set(this.guideProgress, i, true);
+    },
+    exitGuide(i) {
+      this.guided = false;
+      this.$nextTick(() => {
+        const demo = this.narrow ? this.$refs.mobileDemos?.[i] : this.$refs.desktopDemo;
+        demo?.focusHeading();
+      });
+    },
+    showSource() {
+      this.choose(0, "source");
+    },
+    choose(i, destination) {
+      const section = this.$refs.steps[i];
+      if (!section) return;
       this.active = i;
-      this.$refs.steps[i].scrollIntoView({
-        block: this.narrow ? "start" : "center",
-        behavior: motionAllowed() ? "smooth" : "auto",
+      if (this._chapterScroll) {
+        const { start, end } = this._chapterScroll;
+        const top = start + ((i + 0.5) / this.steps.length) * (end - start);
+        window.scrollTo({ top, behavior: "instant" });
+        this._chapterScroll.update();
+      } else if (this.narrow && destination !== "source") {
+        section.scrollIntoView({ block: "start", behavior: this.allowMotion ? "smooth" : "auto" });
+      }
+      if (!destination) return;
+      this.$nextTick(() => {
+        const demo = this.narrow ? this.$refs.mobileDemos?.[i] : this.$refs.desktopDemo;
+        if (destination === "source") demo?.focusSource();
+        else demo?.focusHeading();
       });
     },
   },
@@ -160,6 +214,18 @@ export default {
     font-size: 12px;
     color: #6c92ad;
   }
+}
+
+.start-guide {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  margin-top: 12px;
+  color: @cyan;
+  font-size: 13px;
+
+  &:hover, &:focus-visible { text-decoration: underline; }
 }
 
 .story-layout {
@@ -261,7 +327,7 @@ export default {
 
   // 各演示保持相同窗口高度，切换内容和展开解析不会触发浏览器滚动锚定跳跃。
   ::v-deep .demo-content {
-    height: clamp(350px, calc(100dvh - 300px), 520px);
+    height: clamp(260px, calc(100dvh - 340px), 520px);
     min-height: 0;
     overflow-y: auto;
     overflow-anchor: none;
@@ -280,19 +346,26 @@ export default {
 }
 
 .story-stage-track {
-  display: flex;
-  gap: 7px;
-  margin: 19px auto;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px auto 0;
 
-  i {
-    width: 28px;
-    height: 2px;
-    background: #1a4054;
-    transition: background 0.3s;
+  button {
+    min-height: 44px;
+    padding: 8px 4px;
+    border-top: 2px solid #21465e;
+    border-radius: 0 0 5px 5px;
+    color: #a3bbce;
+    font-size: 12px;
 
-    &.active {
-      background: #43c2d8;
+    span { margin-right: 6px; color: #7394ac; font-size: 9px; }
+    &:hover, &:focus-visible { background: #102d41; color: @text; }
+    &[aria-current="step"] {
+      color: #d9f5ff;
+      border-color: @cyan;
+      background: #102f43;
+      span { color: @cyan; }
     }
   }
 }
@@ -312,7 +385,7 @@ export default {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px), (max-height: 600px) {
   .learning-story {
     padding: 65px 24px 30px;
   }

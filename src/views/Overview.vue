@@ -14,6 +14,21 @@
         <AppIcon name="calendar" :size="18" />{{ today }}
       </span>
     </header>
+    <section v-if="state.mode === 'account' && state.coursesLoaded && !state.courses.length"
+      class="panel first-course" aria-labelledby="first-course-heading">
+      <div>
+        <h2 id="first-course-heading">从第一门课程开始</h2>
+        <p>先建立课程，再放入一份讲义，最后用它向 AI 提问。</p>
+        <ol aria-label="起步流程">
+          <li aria-current="step">建立课程</li>
+          <li>导入资料</li>
+          <li>结合资料提问</li>
+        </ol>
+      </div>
+      <router-link :to="{ name: 'courses', query: { new: '1' } }" class="button primary">
+        <AppIcon name="plus" :size="17" />创建第一门课程
+      </router-link>
+    </section>
     <div class="content-with-aside">
       <section>
         <article class="panel overview-graph">
@@ -253,6 +268,33 @@ export default {
 
 <style lang="less" scoped>
 @import "../styles/tokens.less";
+
+.first-course {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+  border-left: 2px solid @cyan;
+
+  h2 { margin: 0 0 6px; font-size: 18px; }
+  p { margin: 0; color: #a5bfd1; }
+
+  ol {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 28px;
+    row-gap: 5px;
+    margin: 13px 0 0;
+    padding-left: 18px;
+    color: #a5bfd1;
+    font-size: 12px;
+    list-style: decimal;
+  }
+
+  [aria-current="step"] { color: @cyan; }
+}
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 

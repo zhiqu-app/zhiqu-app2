@@ -85,7 +85,7 @@
                 @focus="focused = 'password'" @blur="focused = ''" />
               <button type="button" class="icon-button" :aria-label="visible ? '隐藏密码' : '显示密码'"
                 :aria-pressed="String(visible)" @mousedown.prevent @click="visible = !visible">
-                <AppIcon name="eye" :size="18" />
+                <AppIcon :name="visible ? 'eye-off' : 'eye'" :size="18" />
               </button>
             </div>
 

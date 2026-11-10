@@ -1,11 +1,11 @@
 <template>
-  <div>
+  <div class="mistakes-page">
     <header class="page-heading">
       <div>
         <h1>让错题成为下一次进步的起点</h1>
         <p>把没想清楚的地方，变成下一步的学习方向。</p>
       </div>
-      <router-link to="/app/practice" class="button primary">
+      <router-link v-if="!loading && !loadError && !mistakes.length" :to="practiceLocation" class="button primary">
         <AppIcon name="edit" :size="18" />开始练习
       </router-link>
     </header>
@@ -14,7 +14,7 @@
       {{ loadError }}
       <button class="text-button" @click="load">重新加载</button>
     </p>
-    <div class="filter-bar panel">
+    <div v-if="!loading && !loadError && mistakes.length" class="filter-bar panel">
       <div class="tabs">
         <button :class="{ active: filter === 'all' }" @click="filter = 'all'">
           全部错题
@@ -28,7 +28,10 @@
       </div>
       <span class="muted small">按题目归并 · 以最后一次作答判断掌握情况</span>
     </div>
-    <div class="mistakes-layout">
+    <p v-if="!loading && !loadError && !filtered.length" class="panel mistakes-empty" role="status">
+      {{ mistakes.length ? "当前筛选下暂无错题" : "暂无错题记录" }}
+    </p>
+    <div v-else-if="!loading && !loadError" class="mistakes-layout">
       <section class="panel mistake-list">
         <button v-for="q in filtered" :key="q.id" class="mistake-item" :class="{ active: selectedId === q.id }"
           @click="selectedId = q.id">
@@ -38,11 +41,6 @@
           <h3>{{ q.title }}</h3>
           <span class="muted small">{{ q.point }} · 错误 {{ q.wrongCount }} 次</span>
         </button>
-        <div v-if="!loading && !loadError && !filtered.length" class="empty-state">
-          <AppIcon name="check" :size="40" />
-          <h2>{{ mistakes.length ? "没有匹配的错题" : "还没有错题记录" }}</h2>
-          <p>完成一次练习，记录就会出现在这里。</p>
-        </div>
       </section>
       <section v-if="selected" class="panel mistake-detail">
         <span class="badge amber">{{ selected.point }}</span>
@@ -86,6 +84,12 @@ export default {
     loadError: "",
   }),
   computed: {
+    courseId() {
+      return typeof this.$route.query.course === "string" ? this.$route.query.course : undefined;
+    },
+    practiceLocation() {
+      return { path: "/app/practice", query: this.courseId ? { course: this.courseId } : {} };
+    },
     mistakes() {
       return this.remoteMistakes;
     },
@@ -107,11 +111,7 @@ export default {
       this.loading = true;
       this.loadError = "";
       try {
-        this.remoteMistakes = await loadMistakes(
-          typeof this.$route.query.course === "string"
-            ? this.$route.query.course
-            : undefined,
-        );
+        this.remoteMistakes = await loadMistakes(this.courseId);
       } catch (error) {
         this.loadError = error.message;
       } finally {
@@ -160,6 +160,22 @@ export default {
 @import "../styles/tokens.less";
 
 /* 本组件的布局、状态、动效与响应式样式。 */
+
+.mistakes-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.mistakes-empty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 120px;
+  margin: 0;
+  color: @muted;
+  text-align: center;
+}
 
 .mistakes-layout {
   display: grid;

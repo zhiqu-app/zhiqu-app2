@@ -4,12 +4,28 @@
       <span class="window-dots" aria-hidden="true"><i /><i /><i /></span><span>知序 / 线性代数</span>
       <span class="demo-badge">交互示例</span>
     </div>
-    <transition name="demo-content" mode="out-in" :css="!reduced">
-      <div :key="step" class="demo-content">
+    <transition name="demo-content" :css="!reduced" @before-enter="activatePanel" @before-leave="deactivatePanel">
+      <div :key="step" class="demo-content" :data-demo-step="step">
+        <transition name="guide-open" :css="!reduced" appear>
+          <aside v-if="guide" class="demo-guide" :class="{ 'guide-motion': !reduced }" aria-label="操作引导">
+            <div class="demo-guide-top">
+              <span class="demo-guide-status">已完成 {{ guideCount }} / {{ guide.length }}</span>
+              <button type="button" @click="$emit('exit-guide')">退出引导</button>
+            </div>
+            <div class="demo-guide-meter" aria-hidden="true">
+              <i v-for="(done, index) in guide" :key="index" :class="{ done }" />
+            </div>
+            <p>{{ guideCount === guide.length ? "你已走完示例学习流程" : guideHint }}</p>
+            <transition name="guide-complete" :css="!reduced">
+              <button v-if="guideCount === guide.length" type="button" class="guide-workspace"
+                @click="$emit('enter-workspace')">用自己的课程试试 <AppIcon name="arrow" :size="15" /></button>
+            </transition>
+          </aside>
+        </transition>
         <template v-if="step === 0">
           <div class="demo-heading">
             <AppIcon name="file" :size="21" />
-            <h3>课程资料</h3>
+            <h3 tabindex="-1">课程资料</h3>
             <span>已归档</span>
           </div>
           <div class="demo-document">
@@ -17,35 +33,38 @@
               <span class="document-folder">
                 <AppIcon name="book" :size="16" />线性代数
               </span>
-              <div class="document-file active">
+              <button type="button" class="document-file" :class="{ active: isLecture }"
+                :aria-pressed="String(isLecture)" @click="focusSource(); $emit('guide-action', 0)">
                 <b>PDF</b><span>第三章讲义<small>矩阵与线性变换</small></span>
-              </div>
-              <div class="document-file">
+              </button>
+              <button type="button" class="document-file" :class="{ active: !isLecture }"
+                :aria-pressed="String(!isLecture)" @click="showNotes(); $emit('guide-action', 0)">
                 <b>MD</b><span>课堂笔记<small>阅读时记下的问题</small></span>
-              </div>
+              </button>
             </aside>
             <article class="demo-paper">
-              <span>线性代数 / 第三章</span>
-              <h4>变换中的<br />不变方向</h4>
-              <p>先从一个向量出发，观察矩阵怎样改变它。</p>
+              <span>线性代数 / {{ isLecture ? '第三章' : '课堂笔记' }}</span>
+              <h4 v-if="isLecture">变换中的<br />不变方向</h4>
+              <h4 v-else>这个方向<br />发生了什么</h4>
+              <p>{{ isLecture ? '先从一个向量出发，观察矩阵怎样改变它。' : '把定义代入一个具体例子，检查方向与倍数。' }}</p>
               <div class="paper-matrix">A v = λ v</div>
-              <p class="paper-highlight">
-                当 v ≠ 0 且 Av = λv 时，v 是矩阵 A 的特征向量。
-              </p>
+              <p v-if="isLecture" class="paper-highlight" :class="{ 'source-marked': sourceMarked }"
+                tabindex="-1">{{ sourceText }}</p>
+              <p v-else class="paper-highlight">当 Av = 3v 且 v ≠ 0 时，向量被拉长为原来的三倍，方向保持不变。</p>
               <div class="paper-lines"><i /><i /><i /></div>
-              <small>课程讲义 · 示例片段</small>
+              <small>{{ isLecture ? '课程讲义 · 示例片段' : '课堂笔记 · 示例记录' }}</small>
             </article>
           </div>
         </template>
         <template v-else-if="step === 1">
           <div class="demo-heading">
             <AppIcon name="graph" :size="21" />
-            <h3>我的知识连接</h3>
+            <h3 tabindex="-1">我的知识连接</h3>
             <span>手动配置</span>
           </div>
           <div class="demo-graph">
             <KnowledgeGraph title="课程星图交互示例" :nodes="nodes" :edges="edges" :selected="selected"
-              @select="selected = $event.id" />
+              @select="$emit('select-node', $event.id); $emit('guide-action', 1)" />
             <div class="demo-node-detail">
               <span>{{ selectedNode.label }}</span>
               <p>{{ selectedNode.description }}</p>
@@ -58,21 +77,19 @@
         <template v-else-if="step === 2">
           <div class="demo-heading">
             <AppIcon name="spark" :size="21" />
-            <h3>带着问题阅读</h3>
+            <h3 tabindex="-1">带着问题阅读</h3>
             <span>资料答疑</span>
           </div>
           <div class="demo-chat">
             <div class="chat-source">
               <AppIcon name="file" :size="19" /><span>第三章讲义.pdf</span><small>阅读中的原文</small>
-              <blockquote>
-                当 v ≠ 0 且 Av = λv 时，<br />v 是矩阵 A 的特征向量。
-              </blockquote>
+              <blockquote>{{ sourceText }}</blockquote>
             </div>
             <div class="demo-question">
               <span>我的问题</span>
               <p>特征向量为什么是一个特别的方向？</p>
             </div>
-            <button v-if="!answered" class="demo-action" @click="answered = true">
+            <button v-if="!answered" class="demo-action" @click="showAnswer">
               查看示例回答
               <AppIcon name="arrow" :size="17" />
             </button>
@@ -84,16 +101,17 @@
                 矩阵 A 作用后，向量 v 只变成原来的 λ
                 倍，仍然在同一条直线上。这就是这个方向的特别之处。
               </p>
-              <div class="answer-citation">
-                <AppIcon name="file" :size="14" />原文依据 · 第三章
-              </div>
+              <button type="button" class="answer-citation" @click="$emit('guide-action', 2); $emit('source')">
+                <AppIcon name="file" :size="14" />查看原文 · 第三章
+                <AppIcon name="arrow" :size="14" />
+              </button>
             </div>
           </div>
         </template>
         <template v-else>
           <div class="demo-heading">
             <AppIcon name="edit" :size="21" />
-            <h3>用一道题，验证理解</h3>
+            <h3 tabindex="-1">用一道题，验证理解</h3>
             <span>单选题</span>
           </div>
           <div class="demo-practice">
@@ -114,16 +132,19 @@
                 choice === 0 ? "理解得很准确" : "再对照一下定义"
               }}</strong>
               <p>Av = 3v 符合特征向量的定义，其中对应的特征值为 3。</p>
-              <button v-if="!planned" class="demo-action" @click="planned = true">
+              <button v-if="!planned" class="demo-action" @click="addPlan">
                 加入示例复习计划
                 <AppIcon name="calendar" :size="16" />
-              </button><span v-else class="planned">
+              </button><span v-else class="planned" tabindex="-1">
                 <AppIcon name="check" :size="16" />示例复习已安排
               </span>
             </div>
             <p v-else class="demo-subnote">点击一个选项，试试你的理解。</p>
           </div>
         </template>
+        <button v-if="step < nextLabels.length" type="button" class="demo-next" @click="$emit('advance', step + 1)">
+          <small>下一步</small>{{ nextLabels[step] }}<AppIcon name="arrow" :size="16" />
+        </button>
       </div>
     </transition>
     <div class="demo-footer">
@@ -146,22 +167,100 @@ import { motionAllowed } from "../../utils/motion";
 export default {
   name: "ProductDemo",
   components: { KnowledgeGraph },
-  props: { step: { type: Number, default: 0 } },
+  props: {
+    step: { type: Number, default: 0 },
+    selected: { type: String, default: "product-eigen" },
+    guide: { type: Array, default: null },
+    contained: Boolean,
+  },
   data: () => ({
     nodes: productNodes,
     edges: productEdges,
-    selected: "product-matrix",
+    documentKey: "lecture",
+    sourceMarked: false,
+    sourceText: "当 v ≠ 0 且 Av = λv 时，v 是矩阵 A 的特征向量，λ 是对应的特征值。",
+    nextLabels: ["看知识关系", "带着问题读", "试一道练习"],
     answered: false,
     choice: null,
     planned: false,
     options: ["对应特征值 3 的特征向量", "矩阵 A 的逆矩阵", "零向量"],
   }),
   computed: {
+    isLecture() {
+      return this.documentKey === "lecture";
+    },
     selectedNode() {
       return this.nodes.find((n) => n.id === this.selected) || this.nodes[0];
     },
     reduced() {
       return !motionAllowed();
+    },
+    guideCount() {
+      return this.guide.filter(Boolean).length;
+    },
+    guideHint() {
+      const hints = [
+        ["点选讲义或课堂笔记，看看课程资料。", "资料已打开，可以接着看知识关系。"],
+        ["点一个星图节点，看看知识点的说明。", "已查看知识点，接下来带着问题阅读。"],
+        [this.answered ? "点「查看原文」，回到引用段落。" : "打开示例回答，找找它引用了哪段讲义。", "已定位引用段落。"],
+        [this.choice === null ? "选一个答案，看看解析，再把这题加入复习。" : "点击「加入示例复习计划」，留到下次复习。", "已安排示例复习。"],
+      ];
+      return hints[this.step][Number(this.guide[this.step])];
+    },
+  },
+  methods: {
+    activatePanel(panel) {
+      panel.removeAttribute("inert");
+    },
+    deactivatePanel(panel) {
+      panel.setAttribute("inert", "");
+    },
+    focusHeading() {
+      this.$el.querySelector(`[data-demo-step="${this.step}"]:not([inert]) h3`)?.focus({ preventScroll: true });
+    },
+    showAnswer() {
+      this.answered = true;
+      if (!this.guide) return;
+      this.$nextTick(() => {
+        const citation = this.$el.querySelector(".demo-content:not([inert]) .answer-citation");
+        if (citation) this.reveal(citation);
+      });
+    },
+    addPlan() {
+      this.planned = true;
+      this.$emit("guide-action", 3);
+      if (!this.guide) return;
+      this.$nextTick(() => {
+        const finish = this.$el.querySelector(".demo-content:not([inert]) .guide-workspace");
+        if (finish) this.reveal(finish);
+        else this.$el.querySelector(".planned")?.focus({ preventScroll: true });
+      });
+    },
+    focusSource() {
+      this.documentKey = "lecture";
+      this.sourceMarked = true;
+      this.$nextTick(() => {
+        if (this.step !== 0 || this._isDestroyed) return;
+        const passage = this.$el.querySelector('[data-demo-step="0"]:not([inert]) .paper-highlight');
+        if (passage) this.reveal(passage);
+      });
+    },
+    reveal(target) {
+      const behavior = this.reduced ? "auto" : "smooth";
+      target.focus({ preventScroll: true });
+      if (!this.contained) {
+        target.scrollIntoView({ block: "nearest", behavior });
+        return;
+      }
+      // 桌面只滚动演示窗口，避免带动页面滚动并触发其它章节。
+      const panel = target.closest(".demo-content");
+      const bounds = target.getBoundingClientRect();
+      const top = panel.scrollTop + bounds.top - panel.getBoundingClientRect().top;
+      panel.scrollTo({ top: top - (panel.clientHeight - bounds.height) / 2, behavior });
+    },
+    showNotes() {
+      this.documentKey = "notes";
+      this.sourceMarked = false;
     },
   },
 };
@@ -169,8 +268,10 @@ export default {
 <style lang="less" scoped>
 @import "../../styles/tokens.less";
 
-/* 与真实业务隔离的产品预览，所有选题/答疑/计划状态仅存在当前组件内。 */
+/* 产品示例的资料、答疑和练习共用舞台，状态只保存在页面中。 */
 .product-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   background: #081e30;
   border: 1px solid #21465e;
   border-radius: 13px;
@@ -180,6 +281,7 @@ export default {
 }
 
 .demo-topbar {
+  grid-row: 1;
   padding: 16px 20px;
   border-bottom: 1px solid #1e3d52;
   display: flex;
@@ -216,8 +318,94 @@ export default {
 }
 
 .demo-content {
+  grid-row: 2;
+  grid-column: 1;
+  min-width: 0;
   min-height: 400px;
   padding: 26px;
+}
+
+.demo-guide {
+  margin-bottom: 22px;
+  padding: 10px 12px 12px;
+  border-left: 2px solid @cyan;
+  background: #102f43;
+  color: #d8eef8;
+  font-size: 13px;
+
+  p { margin: 9px 0 0; line-height: 1.55; }
+}
+
+.demo-guide-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  button {
+    min-height: 44px;
+    padding: 0 5px;
+    color: #b2d2e5;
+    font-size: 12px;
+    &:hover, &:focus-visible { text-decoration: underline; }
+  }
+}
+
+.demo-guide-status { color: #8ce1f4; font-variant-numeric: tabular-nums; }
+
+.demo-guide-meter {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+
+  i {
+    height: 3px;
+    background: #35576a;
+
+    &::after {
+      content: "";
+      display: block;
+      height: 100%;
+      background: @cyan;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition-property: none;
+    }
+
+    &.done::after { transform: scaleX(1); }
+  }
+
+  .guide-motion & i::after {
+    transition: transform 260ms ease-out;
+  }
+}
+
+.guide-workspace {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
+  color: #8ce1f4;
+  &:hover, &:focus-visible { text-decoration: underline; }
+}
+
+.guide-motion .guide-workspace {
+  .app-icon { transition: transform 180ms ease-out; }
+  &:hover .app-icon, &:focus-visible .app-icon { transform: translateX(3px); }
+  &:active .app-icon { transform: translateX(1px); }
+}
+
+.guide-open-enter-active { animation: guide-enter 240ms ease-out; }
+.guide-complete-enter-active { animation: guide-finish 280ms ease-out; }
+
+@keyframes guide-enter {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes guide-finish {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .demo-heading {
@@ -265,6 +453,7 @@ export default {
 
 .document-file {
   display: flex;
+  width: 100%;
   gap: 8px;
   align-items: center;
   font-size: 10px;
@@ -272,6 +461,9 @@ export default {
   border-radius: 5px;
   color: #7097ad;
   margin: 5px 0;
+  text-align: left;
+
+  &:hover, &:focus-visible { background: #102f43; color: #d2e5f0; }
 
   &.active {
     background: #12344a;
@@ -339,6 +531,13 @@ export default {
   background: #d4e7e9;
   padding: 9px;
   border-left: 2px solid #4ba2b8;
+
+  &.source-marked {
+    background: #ffe7a8;
+    border-color: #a76c21;
+    color: #433416;
+  }
+  &:focus { outline: 2px solid #a76c21; outline-offset: 2px; }
 }
 
 .paper-lines {
@@ -481,6 +680,9 @@ export default {
   padding-top: 10px;
   font-size: 9px;
   color: #78a8bc;
+  padding-inline: 0;
+  min-height: 36px;
+  &:hover, &:focus-visible { color: #c2efff; }
 }
 
 .question-kicker {
@@ -567,6 +769,7 @@ export default {
 }
 
 .demo-footer {
+  grid-row: 3;
   border-top: 1px solid #1c3c50;
   padding: 14px 20px;
   display: flex;
@@ -595,12 +798,35 @@ export default {
   }
 }
 
+.demo-next {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 18px;
+  padding: 8px 12px;
+  border: 1px solid #23536d;
+  border-radius: 6px;
+  background: #0e2b40;
+  color: #d8effa;
+  font-size: 12px;
+  text-align: left;
+
+  small { color: #8ab5c9; font-size: 10px; }
+  .app-icon { margin-left: auto; color: @cyan; }
+  &:hover, &:focus-visible { background: #163b52; }
+}
+
 .demo-content-enter-active,
 .demo-content-leave-active {
   transition:
     opacity 0.22s,
     transform 0.22s;
 }
+
+.demo-content-enter-active { z-index: 1; }
+.demo-content-leave-active { pointer-events: none; }
 
 .demo-content-enter {
   opacity: 0;
@@ -636,8 +862,14 @@ export default {
     grid-template-columns: 1fr;
 
     aside {
-      display: none;
+      display: flex;
+      gap: 6px;
+      padding-top: 0;
     }
+
+    .document-folder { display: none; }
+    .document-file { min-width: 0; min-height: 44px; margin: 0; }
+    .document-file small { display: none; }
   }
 
   .demo-paper {

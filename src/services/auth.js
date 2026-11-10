@@ -18,6 +18,15 @@ export async function loginAccount(email, password) {
   return result.user;
 }
 
+export async function resetAccountPassword(body) {
+  const token = getToken();
+  await api.resetPassword(body);
+  if (getToken() === token && state.account?.email === body.email) {
+    clearToken();
+    clearAccount();
+  }
+}
+
 export async function restoreSession() {
   if (!getToken()) {
     if (state.mode === "account") clearAccount();

@@ -16,6 +16,21 @@
         </router-link>
       </div>
     </header>
+    <section v-if="course._remote && !course.archived && !loading && !loadError"
+      class="panel course-start" :class="{ 'course-start-ready': animateFirstUpload }" aria-label="课程起步">
+      <div>
+        <span class="course-start-step">{{ materials.length ? "03 / 03" : "02 / 03" }} · 课程起步</span>
+        <h2>{{ materials.length ? "结合资料提问" : "导入第一份资料" }}</h2>
+        <p>{{ materials.length
+          ? "带着一个具体问题，让研习室从这门课的资料中找线索。"
+          : "选一份 PDF、TXT 或 Markdown，给这门课添一份可查阅的讲义。" }}</p>
+      </div>
+      <router-link v-if="materials.length" :to="{ name: 'studio', query: { course: course.id } }"
+        class="button primary">用这门课提问 <AppIcon name="arrow" :size="17" /></router-link>
+      <button v-else type="button" class="button primary" :disabled="uploading" @click="$refs.upload.click()">
+        <AppIcon name="upload" :size="17" />{{ uploading ? "正在导入…" : "选择课程资料" }}
+      </button>
+    </section>
     <p v-if="loadError" class="error-message" role="alert">
       {{ loadError }}
       <button class="text-button" @click="load">重新加载</button>
@@ -132,6 +147,7 @@
   </div>
 </template>
 <script>
+import { motionAllowed } from "../utils/motion";
 import AppModal from "../components/AppModal.vue";
 import CourseGraphQuickPanel from "../components/CourseGraphQuickPanel.vue";
 import { state, persist, uid, notify } from "../store";
@@ -154,6 +170,7 @@ export default {
     loading: false,
     loadError: "",
     uploading: false,
+    firstUploadCourse: null,
   }),
   computed: {
     course() {
@@ -163,6 +180,9 @@ export default {
       return state.materials.filter(
         (m) => m.courseId === this.$route.params.id,
       );
+    },
+    animateFirstUpload() {
+      return this.materials.length > 0 && this.firstUploadCourse === this.$route.params.id && motionAllowed();
     },
     filtered() {
       return this.materials.filter((m) =>
@@ -196,6 +216,7 @@ export default {
       const courseId = this.$route.params.id;
       event.target.value = "";
       if (this.uploading) return;
+      const isFirstUpload = !this.materials.length;
       this.uploading = true;
       let added = 0;
       for (const file of files) {
@@ -212,6 +233,7 @@ export default {
         try {
           await uploadMaterial(courseId, file);
           added++;
+          if (isFirstUpload && added === 1) this.firstUploadCourse = courseId;
         } catch (error) {
           notify(error.message || "读取文件失败，请重试。");
         }
@@ -241,6 +263,33 @@ export default {
 
 <style lang="less" scoped>
 @import "../styles/tokens.less";
+
+.course-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 22px;
+  border-left: 2px solid @cyan;
+
+  h2 { margin: 5px 0; font-size: 17px; }
+  p { margin: 0; color: #a5bfd1; }
+}
+
+.course-start-step {
+  color: @cyan;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.course-start-ready {
+  animation: course-ready 520ms ease-out;
+}
+
+@keyframes course-ready {
+  from { background-color: #164257; }
+}
 
 /* 本组件的布局、状态、动效与响应式样式。 */
 

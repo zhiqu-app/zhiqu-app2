@@ -8,7 +8,7 @@
       <p v-if="error" class="error-message" role="alert">
         {{ error }} <button class="text-button" @click="load">重新读取</button>
       </p>
-      <KnowledgeGraph v-if="graph && graph.nodes.length" :title="course.name + '知识点关系'" :nodes="graph.nodes"
+      <CanvasKnowledgeGraph v-if="graph && graph.nodes.length" :title="course.name + '知识点关系'" :nodes="graph.nodes"
         :edges="graph.edges" />
       <p v-else-if="!loading" class="muted">
         还没有知识点，可先添加一项，再逐步连接。
@@ -68,7 +68,7 @@
   </div>
 </template>
 <script>
-import KnowledgeGraph from "./KnowledgeGraph.vue";
+import CanvasKnowledgeGraph from "./CanvasKnowledgeGraph.vue";
 import AppModal from "./AppModal.vue";
 import {
   loadGraphPreview,
@@ -77,7 +77,7 @@ import {
 } from "../services/platform";
 export default {
   name: "CourseGraphQuickPanel",
-  components: { KnowledgeGraph, AppModal },
+  components: { CanvasKnowledgeGraph, AppModal },
   props: { course: { type: Object, required: true } },
   data: () => ({
     graph: null,

@@ -180,7 +180,8 @@
           {{ goal || "知识点由你设定，连接表示学习的先后顺序。" }}
         </p>
         <GroupedKnowledgeGraph v-if="groups.length" :graph="previewGraph" :group="activeGroupId"
-          :selected="selectedNode ? selectedNode.id : ''" @group="activeGroupId = $event"
+          :selected="selectedNode ? selectedNode.id : ''" :editable="!saving"
+          @position-node="positionNode" @delete-node="pendingRemovalId = $event" @group="activeGroupId = $event"
           @select="selectedId = $event ? $event.id : ''" />
         <div v-else class="editor-preview-empty">
           <AppIcon name="graph" :size="44" />
@@ -200,10 +201,19 @@
         </p>
       </aside>
     </div>
+    <AppModal v-if="pendingRemovalId" :title="'删除「' + label(pendingRemovalId) + '」？'"
+      @close="pendingRemovalId = ''">
+      <p>该节点及其连线会从当前编辑中移除，保存星图后生效。</p>
+      <div class="modal-actions">
+        <button type="button" class="button secondary" @click="pendingRemovalId = ''">取消</button>
+        <button type="button" class="button danger" @click="confirmRemoval">确认删除</button>
+      </div>
+    </AppModal>
   </div>
 </template>
 <script>
 import GroupedKnowledgeGraph from "../components/GroupedKnowledgeGraph.vue";
+import AppModal from "../components/AppModal.vue";
 import { layoutGroup, nextNodePosition } from "../utils/knowledgeGroups";
 import { state, uid, notify } from "../store";
 import { getCourse, loadTasks } from "../services/courses";
@@ -211,7 +221,7 @@ import { loadCourseGraph, saveCourseGraph } from "../services/course-knowledge";
 
 export default {
   name: "CourseKnowledgeEditor",
-  components: { GroupedKnowledgeGraph },
+  components: { GroupedKnowledgeGraph, AppModal },
   data: () => ({
     state,
     course: null,
@@ -225,6 +235,7 @@ export default {
     source: "",
     target: "",
     selectedId: "",
+    pendingRemovalId: "",
     loading: true,
     saving: false,
     loadError: "",
@@ -421,6 +432,16 @@ export default {
       );
       if (this.source === id) this.source = "";
       if (this.target === id) this.target = "";
+    },
+    positionNode({ id, x, y }) {
+      const node = this.activeNodes.find((item) => item.id === id);
+      if (!node || this.saving) return;
+      node.x = x;
+      node.y = y;
+    },
+    confirmRemoval() {
+      this.removeNode(this.pendingRemovalId);
+      this.pendingRemovalId = "";
     },
     label(id) {
       return this.nodes.find((node) => node.id === id)?.label || "未命名知识点";

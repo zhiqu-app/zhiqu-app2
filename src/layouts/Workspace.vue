@@ -1,5 +1,9 @@
 <template>
-  <div class="workspace" :class="{ 'menu-open': menuOpen, immersive: $route.name === 'practice' }"
+  <div class="workspace" :class="{
+    'menu-open': menuOpen,
+    immersive: $route.name === 'practice',
+    'workspace-stretch': $route.name === 'mistakes',
+  }"
     @keydown.esc="closeMenu">
     <div v-if="menuOpen" class="menu-shade" @click="menuOpen = false" />
     <div ref="sidebar" class="sidebar-container" :inert="narrow && !menuOpen ? '' : null" @keydown.tab="trapMenu">
@@ -265,6 +269,19 @@ export default {
   padding: 26px 28px 48px;
   max-width: 1800px;
   margin: 0 auto;
+}
+
+.workspace-stretch {
+  .workspace-body,
+  .workspace-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-content {
+    flex: 1;
+    width: 100%;
+  }
 }
 
 .mobile-nav,

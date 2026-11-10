@@ -37,14 +37,14 @@
               @focus="focused = 'password'" @blur="focused = ''" />
             <button class="icon-button" type="button" :aria-label="visible ? '隐藏密码' : '显示密码'"
               :aria-pressed="String(visible)" @mousedown.prevent @click="visible = !visible">
-              <AppIcon name="eye" :size="18" />
+              <AppIcon :name="visible ? 'eye-off' : 'eye'" :size="18" />
             </button>
           </div>
           <div class="login-options">
             <span class="muted small">密码仅保留在当前输入框中</span>
-            <button type="button" class="text-button" @click="notify('尚未提供找回密码功能。没有账号可以先注册。')">
-              需要帮助？
-            </button>
+            <router-link :to="{ path: '/forgot-password', query: { redirect: $route.query.redirect } }" class="text-button">
+              忘记密码？
+            </router-link>
           </div>
           <p v-if="error" class="error-message" role="alert">{{ error }}</p>
           <button class="button primary full-width" type="submit" :disabled="busy">
@@ -69,7 +69,6 @@
 import PublicHeader from "../components/PublicHeader.vue";
 import BrandLogo from "../components/BrandLogo.vue";
 import BookStage from "../components/BookStage.vue";
-import { notify } from "../store";
 import { loginAccount, enterOnlineDemo } from "../services/auth";
 export default {
   name: "Login",
@@ -115,7 +114,6 @@ export default {
         this.busy = false;
       }
     },
-    notify,
     async submit() {
       if (this.busy) return;
       this.error = "";
