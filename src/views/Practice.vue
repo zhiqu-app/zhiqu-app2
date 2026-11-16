@@ -3,7 +3,7 @@
     <header class="page-heading">
       <div>
         <span class="eyebrow">{{ course ? course.name : "课程题库" }}{{ current ? " · " + current.point : "" }}</span>
-        <h1>{{ submitted ? "练习解析" : "课程巩固练习" }}</h1>
+        <h1>{{ submitted ? "练习解析" : nodeId ? "知识点巩固练习" : "课程巩固练习" }}</h1>
         <p>
           {{ "题目与判分来自后端，作答保存在你的账号中。" }}
         </p>
@@ -13,11 +13,11 @@
           path: '/app/history',
           query: courseId ? { course: courseId } : {},
         }" class="button secondary">作答历史</router-link>
-        <router-link v-if="course && course._remote" :to="'/app/courses/' + course.id + '/questions'"
+        <router-link v-if="questionBankLocation" :to="questionBankLocation"
           class="button secondary">配置题库</router-link>
         <router-link :to="{
           path: '/app/mistakes',
-          query: course ? { course: course.id } : {},
+          query: practiceScope,
         }" class="button secondary">
           错题本
         </router-link>
@@ -50,6 +50,10 @@
         </option>
       </select>
     </label>
+    <p v-if="nodeId && !loading && !loadError" class="practice-scope small muted">
+      当前仅练习本知识点。
+      <router-link :to="{ path: '/app/practice', query: { course: courseId } }" class="text-button">查看全课程题目</router-link>
+    </p>
     <section v-if="loading" class="panel empty-state" role="status">
       正在读取课程题库…
     </section>
@@ -58,12 +62,9 @@
       <button class="button secondary" @click="load">重新加载</button>
     </section>
     <section v-else-if="!current" class="panel empty-state">
-      <h2>{{ course ? "这门课程还没有可练习的题目" : "先选择或创建课程" }}</h2>
-      <p>进入课程的「配置题库」，导入 JSON 题目后再开始练习。</p>
-      <router-link :to="course && course._remote
-        ? '/app/courses/' + course.id + '/questions'
-        : '/app/courses'
-        " class="button primary">{{ course && course._remote ? "配置题库" : "我的课程" }}</router-link>
+      <h2>{{ nodeId ? "这个知识点还没有可练习的题目" : course ? "这门课程还没有可练习的题目" : "先选择或创建课程" }}</h2>
+      <p>{{ nodeId ? "在题库中给题目关联这个知识点，即可开始专项练习。" : "配置课程题库后即可开始练习。" }}</p>
+      <router-link :to="questionBankLocation || '/app/courses'" class="button primary">{{ questionBankLocation ? "配置题库" : "我的课程" }}</router-link>
     </section>
     <div v-else class="content-with-aside practice-layout">
       <section class="panel question-panel">
@@ -106,8 +107,9 @@
               }}
             </h3>
             <p>{{ graded.explanation }}</p>
-            <router-link :to="{ path: '/app/studio', query: { course: courseId } }" class="source-chip">
-              <AppIcon name="file" :size="16" />回看本课程资料
+            <p v-if="sourceEvidence && sourceEvidence.excerpt" class="evidence-excerpt">{{ sourceEvidence.excerpt }}</p>
+            <router-link :to="sourceLocation" class="source-chip">
+              <AppIcon name="file" :size="16" />{{ sourceEvidence?.materialId ? "查看原文 · " + sourceEvidence.name : sourceLocation.query.material ? "查看来源资料" : "回看本课程资料" }}
             </router-link>
             <p v-if="choice !== graded.answer" class="small muted">
               本题已记录到错题本。
@@ -161,12 +163,14 @@ import {
   loadQuestion,
   submitAnswer,
 } from "../services/questions";
+import { studioSourceLocation } from "../utils/sourceLocation";
 export default {
   name: "Practice",
   data: () => ({
     state,
     courseId: "",
     taskId: "",
+    nodeId: "",
     questions: [],
     index: 0,
     answers: {},
@@ -191,6 +195,21 @@ export default {
     course() {
       return state.courses.find((c) => c.id === this.courseId) || null;
     },
+    practiceScope() {
+      return {
+        ...(this.courseId ? { course: this.courseId } : {}),
+        ...(this.nodeId ? { node: this.nodeId } : {}),
+      };
+    },
+    questionBankLocation() {
+      return this.course?._remote
+        ? {
+          name: "question-bank",
+          params: { id: this.courseId },
+          query: this.nodeId ? { node: this.nodeId } : {},
+        }
+        : null;
+    },
     current() {
       return this.questions[this.index] || null;
     },
@@ -199,6 +218,16 @@ export default {
     },
     submitted() {
       return Boolean(this.graded);
+    },
+    sourceEvidence() {
+      return this.graded?.sourceEvidence || this.graded?.attempt?.sourceEvidence || this.current?.sourceEvidence;
+    },
+    sourceLocation() {
+      return studioSourceLocation(
+        this.courseId,
+        this.sourceEvidence,
+        this.graded?.source || this.graded?.attempt?.source || this.current?.source,
+      );
     },
     time() {
       return (
@@ -234,6 +263,7 @@ export default {
       const revision = ++this.loadRevision;
       const query = { ...this.$route.query };
       const taskId = typeof query.task === "string" ? query.task : "";
+      const nodeId = !taskId && typeof query.node === "string" ? query.node : "";
       this.loading = true;
       this.loadError = "";
       this.submitError = "";
@@ -241,15 +271,20 @@ export default {
       this.answers = {};
       this.choice = null;
       this.pendingSubmission = null;
+      this.busy = false;
       this.finished = false;
       this.draftKey = "";
       this.taskId = taskId;
+      this.nodeId = nodeId;
       try {
         if (query.task !== undefined && !taskId)
           throw new Error("计划链接无效，请返回复习计划重新打开。");
+        if (!taskId && query.node !== undefined && !nodeId)
+          throw new Error("知识点练习链接无效，请从知识路线重新打开。");
         await loadCourses();
         if (this._isDestroyed || revision !== this.loadRevision) return;
         let requested = query.question;
+        let requestedQuestion = null;
         let id =
           typeof query.course === "string" ? query.course : this.courseId;
         let task = null;
@@ -268,10 +303,11 @@ export default {
           requested = task.questionIds.includes(requested) ? requested : null;
           await getCourse(id);
           if (this._isDestroyed || revision !== this.loadRevision) return;
-        } else if (state.mode === "account" && requested) {
+        } else if (state.mode === "account" && requested && (!nodeId || !id)) {
           const question = await loadQuestion(requested);
           if (this._isDestroyed || revision !== this.loadRevision) return;
           id = question.courseId;
+          requestedQuestion = question;
         }
         this.courseId =
           id ||
@@ -280,8 +316,12 @@ export default {
           "";
         let questions = [];
         if (state.mode === "account" && this.course?._remote)
-          questions = await loadQuestions(this.courseId);
+          questions = await loadQuestions(this.courseId, nodeId, taskId);
         if (this._isDestroyed || revision !== this.loadRevision) return;
+        if (!nodeId && requestedQuestion &&
+            !questions.some((question) => question.id === requestedQuestion.id)) {
+          questions = [requestedQuestion, ...questions];
+        }
         if (task) {
           const byId = new Map(
             questions.map((question) => [question.id, question]),
@@ -313,7 +353,7 @@ export default {
         this.owner +
         ":" +
         this.courseId +
-        (this.taskId ? ":task:" + this.taskId : "");
+        (this.taskId ? ":task:" + this.taskId : this.nodeId ? ":node:" + this.nodeId : "");
       let draft = {};
       try {
         draft = JSON.parse(sessionStorage.getItem(this.draftKey)) || {};
@@ -421,7 +461,7 @@ export default {
         if (revision === this.loadRevision && error.name !== "AbortError")
           this.submitError = error.message || "作答尚未保存，请重试。";
       } finally {
-        this.busy = false;
+        if (revision === this.loadRevision) this.busy = false;
       }
     },
     go(index) {
@@ -434,11 +474,6 @@ export default {
     },
     async changeCourse() {
       if (this.taskId) return;
-      this.saveDraft();
-      this.questions = [];
-      this.answers = {};
-      this.choice = null;
-      this.pendingSubmission = null;
       await this.$router.replace({
         path: "/app/practice",
         query: { course: this.courseId },
@@ -497,6 +532,16 @@ export default {
     background: @bg;
     color: @text;
   }
+}
+
+.practice-scope {
+  margin: -4px 0 16px;
+}
+
+.evidence-excerpt {
+  padding-left: 12px;
+  border-left: 2px solid @border;
+  overflow-wrap: anywhere;
 }
 
 .practice-task {

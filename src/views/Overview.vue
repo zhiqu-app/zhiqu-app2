@@ -10,9 +10,12 @@
           }}，欢迎回来。把理解留给今天，把进步留在记录里。
         </p>
       </div>
-      <span class="date-label">
-        <AppIcon name="calendar" :size="18" />{{ today }}
-      </span>
+      <div class="overview-coach-actions">
+        <span class="date-label"><AppIcon name="calendar" :size="18" />{{ today }}</span>
+        <router-link :to="{ name: 'review-coach' }" class="button secondary">
+          <AppIcon name="spark" :size="17" />AI 复习教练
+        </router-link>
+      </div>
     </header>
     <section v-if="state.mode === 'account' && state.coursesLoaded && !state.courses.length"
       class="panel first-course" aria-labelledby="first-course-heading">
@@ -442,3 +445,9 @@ export default {
   }
 }
 </style>
+.overview-coach-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}

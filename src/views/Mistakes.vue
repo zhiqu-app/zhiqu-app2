@@ -57,8 +57,12 @@
         </div>
         <h3>解析</h3>
         <p>{{ selected.explanation }}</p>
+        <p v-if="selected.sourceEvidence && selected.sourceEvidence.excerpt" class="evidence-excerpt">{{ selected.sourceEvidence.excerpt }}</p>
+        <router-link :to="sourceLocation" class="source-chip">
+          <AppIcon name="file" :size="16" />{{ selected.sourceEvidence?.materialId ? "查看原文 · " + selected.sourceEvidence.name : sourceLocation.query.material ? "查看来源资料" : "回看本课程资料" }}
+        </router-link>
         <div class="button-row">
-          <button class="button secondary" @click="addPlan(selected)">
+          <button class="button secondary" :disabled="!!pendingPlan" @click="addPlan(selected)">
             <AppIcon name="calendar" :size="18" />加入复习计划
           </button>
           <button class="button primary" @click="retry(selected)">
@@ -66,29 +70,46 @@
             <AppIcon name="arrow" :size="18" />
           </button>
         </div>
+        <div v-if="selected.knowledgeNodeId" class="retest-actions">
+          <button class="button secondary" :disabled="!!pendingPlan" @click="addPlan(selected, true)">
+            <AppIcon name="calendar" :size="18" />安排同知识点复测
+          </button>
+          <p class="small muted">选用同一知识点的另一道题，两天后提醒。</p>
+        </div>
       </section>
     </div>
   </div>
 </template>
 <script>
-import { state, persist, uid, notify } from "../store";
-import { loadMistakes, planMistake } from "../services/questions";
+import { state, notify } from "../store";
+import { loadMistakes, planMistake, retestMistake } from "../services/questions";
+import { studioSourceLocation } from "../utils/sourceLocation";
 export default {
   name: "Mistakes",
   data: () => ({
-    state,
     filter: "all",
     selectedId: "",
     remoteMistakes: [],
     loading: false,
     loadError: "",
+    loadRevision: 0,
+    pendingPlan: false,
   }),
   computed: {
     courseId() {
       return typeof this.$route.query.course === "string" ? this.$route.query.course : undefined;
     },
+    nodeId() {
+      return typeof this.$route.query.node === "string" ? this.$route.query.node : undefined;
+    },
     practiceLocation() {
-      return { path: "/app/practice", query: this.courseId ? { course: this.courseId } : {} };
+      return {
+        path: "/app/practice",
+        query: {
+          ...(this.courseId ? { course: this.courseId } : {}),
+          ...(this.nodeId ? { node: this.nodeId } : {}),
+        },
+      };
     },
     mistakes() {
       return this.remoteMistakes;
@@ -104,31 +125,44 @@ export default {
         this.filtered.find((q) => q.id === this.selectedId) || this.filtered[0]
       );
     },
+    sourceLocation() {
+      return studioSourceLocation(this.selected?.courseId, this.selected?.sourceEvidence, this.selected?.source);
+    },
   },
   methods: {
     async load() {
       if (state.mode !== "account") return;
+      const revision = ++this.loadRevision;
       this.loading = true;
       this.loadError = "";
+      this.selectedId = "";
       try {
-        this.remoteMistakes = await loadMistakes(this.courseId);
+        const items = await loadMistakes(this.courseId, "all", this.nodeId);
+        if (revision === this.loadRevision && !this._isDestroyed)
+          this.remoteMistakes = items;
       } catch (error) {
-        this.loadError = error.message;
+        if (revision === this.loadRevision && error.name !== "AbortError")
+          this.loadError = error.message;
       } finally {
-        this.loading = false;
+        if (revision === this.loadRevision) this.loading = false;
       }
     },
-    async addPlan(q) {
-      if (state.mode === "account") {
-        try {
-          const result = await planMistake(q.id);
-          notify(result.created ? "已加入复习计划" : "这道题已在复习计划中");
-        } catch (error) {
-          notify(error.message);
-        }
+    async addPlan(q, retest = false) {
+      if (this.pendingPlan) return;
+      if (state.mode !== "account") {
+        notify("请登录账号后安排复习。");
         return;
       }
-      notify("请登录账号后安排复习。");
+      this.pendingPlan = true;
+      try {
+        const result = await (retest ? retestMistake(q.id) : planMistake(q.id));
+        if (retest) notify(result.created ? "已安排同知识点复测，两天后提醒。" : "这道错题已有待完成的复测计划。");
+        else notify(result.created ? "已加入复习计划" : "这道题已在复习计划中");
+      } catch (error) {
+        if (error.name !== "AbortError") notify(error.message);
+      } finally {
+        this.pendingPlan = false;
+      }
     },
     retry(q) {
       if (state.mode === "account") {
@@ -152,6 +186,11 @@ export default {
   },
   created() {
     this.load();
+  },
+  watch: {
+    "$route.fullPath"() {
+      this.load();
+    },
   },
 };
 </script>
@@ -224,6 +263,20 @@ export default {
 
   .button-row {
     margin-top: 26px;
+  }
+}
+
+.evidence-excerpt {
+  padding-left: 12px;
+  border-left: 2px solid @border;
+  overflow-wrap: anywhere;
+}
+
+.retest-actions {
+  margin-top: 18px;
+
+  p {
+    margin: 8px 0 0;
   }
 }
 

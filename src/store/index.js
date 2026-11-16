@@ -8,6 +8,7 @@ const defaults = {
   major: "",
   grade: "",
   email: "",
+  avatar: "",
   reducedMotion: false,
   reminders: true,
 };

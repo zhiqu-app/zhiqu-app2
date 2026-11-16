@@ -1,3 +1,59 @@
+/** 只在路由中传递资料 ID 和位置，原文片段由研习室从账号资料读取。 */
+export function studioSourceLocation(courseId, evidence, legacySource) {
+  const query = {};
+  if (courseId) query.course = courseId;
+  const material = evidence?.materialId || legacySource;
+  if (material) query.material = material;
+  if (
+    Number.isSafeInteger(evidence?.start) &&
+    Number.isSafeInteger(evidence?.end) &&
+    evidence.start >= 0 &&
+    evidence.end > evidence.start
+  ) {
+    query.start = String(evidence.start);
+    query.end = String(evidence.end);
+    if (Number.isSafeInteger(evidence.page) && evidence.page > 0)
+      query.page = String(evidence.page);
+  }
+  return { path: "/app/studio", query };
+}
+
+export function sourceFromRoute(material, query) {
+  const offsets = [query.start, query.end];
+  if (
+    !offsets.every((value) => typeof value === "string" && /^\d+$/.test(value))
+  ) {
+    return null;
+  }
+  const [start, end] = offsets.map(Number);
+  const text = material?.text;
+  // 后端允许最多 1200 个 Unicode 字符，对应最多 2400 个 UTF-16 代码单元。
+  if (
+    typeof text !== "string" ||
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    end <= start ||
+    end - start > 2400 ||
+    end > text.length
+  ) {
+    return null;
+  }
+  const excerpt = text.slice(start, end);
+  if (!excerpt.trim()) return null;
+  const page =
+    typeof query.page === "string" && /^\d+$/.test(query.page)
+      ? Number(query.page)
+      : null;
+  return {
+    materialId: material.id,
+    name: material.name,
+    excerpt,
+    start,
+    end,
+    page: Number.isSafeInteger(page) && page > 0 ? page : null,
+  };
+}
+
 /** 后端偏移采用 UTF-16，与 JS slice 一致；先核对原文，避免旧偏移高亮到错误内容。 */
 export function locateSource(text, source) {
   if (
@@ -38,7 +94,8 @@ export function locateSource(text, source) {
       end = positions[index + wanted.length - 1] + 1;
     }
   }
-  let page = null;
+  let page =
+    Number.isSafeInteger(source.page) && source.page > 0 ? source.page : null;
   for (const match of text.slice(0, start + 1).matchAll(/【第\s*(\d+)\s*页】/g))
     page = Number(match[1]);
   return { start, end, page };

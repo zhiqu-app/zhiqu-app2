@@ -5,7 +5,7 @@
         <h1>AI 研习室</h1>
         <p>阅读课程资料、提问并回看之前的答疑记录。</p>
       </div>
-      <select v-model="courseId" class="input course-select" aria-label="选择研习课程" @change="courseChanged">
+      <select v-model="courseId" class="input course-select" aria-label="选择研习课程" @change="selectCourse">
         <option v-for="course in state.courses" :key="course.id" :value="course.id">
           {{ course.name }}
         </option>
@@ -29,7 +29,7 @@
     <div class="studio-layout">
       <section class="panel document-panel" :class="{ 'mobile-hidden': tab !== 'document' }">
         <div class="document-toolbar">
-          <select v-model="materialId" aria-label="选择阅读资料" @change="readDocument()">
+          <select v-model="materialId" aria-label="选择阅读资料" :disabled="loading" @change="readDocument()">
             <option v-for="m in materials" :key="m.id" :value="m.id">
               {{ m.name }}
             </option>
@@ -64,9 +64,9 @@
         </div>
         <div v-else-if="docError" class="empty-state">
           <p class="error-message" role="alert">{{ docError }}</p>
-          <button class="button secondary" @click="readDocument(activeSource)">重试读取</button>
+          <button class="button secondary" @click="retryDocument">重试读取</button>
         </div>
-        <iframe v-else-if="document && document.url && documentView === 'original'" :src="document.url"
+        <iframe v-else-if="document && document.url && documentView === 'original'" :src="originalUrl"
           title="课程 PDF 预览" class="studio-pdf" />
         <article v-else-if="document" ref="document" class="document-paper">
           <span class="document-kicker">知序 · 课程资料</span>
@@ -105,7 +105,7 @@
         </div>
         <p v-if="historyError" class="error-message" role="alert">
           {{ historyError }}
-          <button class="text-button" @click="courseChanged">重读历史</button>
+          <button class="text-button" @click="load">重读历史</button>
         </p>
         <div ref="messages" class="chat-messages" aria-live="polite">
           <div class="chat-intro">
@@ -121,13 +121,14 @@
             </button>
           </div>
           <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
-            <UserAvatar v-if="message.role === 'user'" :size="30" />
+            <UserAvatar v-if="message.role === 'user'" :src="state.settings.avatar" :name="state.settings.name" :size="30" />
             <div v-else class="assistant-avatar">
               <AppIcon name="book" :size="20" />
             </div>
             <div class="message-body">
               <p>{{ message.text }}</p>
-              <button v-for="(source, i) in message.sources" :key="i" class="source-chip" @click="locate(source)">
+              <button v-for="(source, i) in message.sources" :key="i" class="source-chip"
+                :data-guide-target="i === 0 && message === messages[messages.length - 1] ? 'source' : null" @click="locate(source)">
                 <AppIcon name="file" :size="16" />{{ source.name }} · 原文片段
               </button>
             </div>
@@ -141,7 +142,7 @@
               "支持可解析的课程文字与 PDF；扫描图片暂无 OCR。"
             }}
           </p>
-          <form @submit.prevent="send(question)">
+          <form data-guide-target="answer" @submit.prevent="send(question)">
             <textarea v-model="question" aria-label="向课程资料提问" placeholder="结合课程资料提问…" rows="2" maxlength="2000"
               @keydown.enter.exact.prevent="send(question)" />
             <button v-if="busy" class="button secondary" type="button" @click="stop">
@@ -159,8 +160,9 @@
 <script>
 import UserAvatar from "../components/UserAvatar.vue";
 import { state, uid, notify } from "../store";
-import { locateSource, sourceParagraphs } from "../utils/sourceLocation";
+import { locateSource, sourceFromRoute, sourceParagraphs } from "../utils/sourceLocation";
 import { motionAllowed } from "../utils/motion";
+import { recordGuideAction } from "../services/workspace-guide";
 import {
   loadCourses,
   getCourse,
@@ -231,6 +233,10 @@ export default {
           : "已定位到原文，高亮部分为引用内容。";
       return "无法匹配当前正文，已保留回答时的引用快照。";
     },
+    originalUrl() {
+      const page = this.sourceRange?.page;
+      return page ? this.document.url + "#page=" + page : this.document.url;
+    },
     suggestions() {
       const nodes = state.knowledgeGraphs[this.courseId]?.nodes;
       return nodes?.length
@@ -239,11 +245,8 @@ export default {
     },
   },
   watch: {
-    "$route.query.course"(id) {
-      if (id && id !== this.courseId) {
-        this.courseId = id;
-        this.courseChanged();
-      }
+    "$route.fullPath"() {
+      this.load();
     },
   },
   created() {
@@ -255,25 +258,12 @@ export default {
     ++this.docRevision;
   },
   methods: {
-    async load() {
-      this.loading = true;
-      this.loadError = "";
-      try {
-        await loadCourses();
-        this.courseId =
-          typeof this.$route.query.course === "string"
-            ? this.$route.query.course
-            : state.courses.find((c) => !c.archived)?.id ||
-            state.courses[0]?.id ||
-            "";
-        await this.courseChanged();
-      } catch (error) {
-        this.loadError = error.message;
-      } finally {
-        this.loading = false;
-      }
+    selectCourse() {
+      this.$router.replace({ path: "/app/studio", query: { course: this.courseId } });
     },
-    async courseChanged() {
+    async load() {
+      const query = { ...this.$route.query };
+      const targetMaterial = typeof query.material === "string" ? query.material : "";
       this.stop();
       ++this.docRevision;
       this.activeSource = null;
@@ -288,43 +278,58 @@ export default {
       this.document = null;
       this.materialId = "";
       this.answerMode = "";
+      if (targetMaterial) this.tab = "document";
       try {
-        const course = this.courseId ? await getCourse(this.courseId) : null;
+        await loadCourses();
+        if (revision !== this.loadRevision) return;
+        const courseId = typeof query.course === "string"
+          ? query.course
+          : state.courses.find((c) => !c.archived)?.id || state.courses[0]?.id || "";
+        this.courseId = courseId;
+        const course = courseId ? await getCourse(courseId) : null;
+        if (revision !== this.loadRevision) return;
         if (course && this.remoteCourse) {
           await loadMaterials(course);
-          try {
-            const history = await loadAssistantHistory(this.courseId);
-            if (revision !== this.loadRevision) return;
-            this.messages = history.flatMap((row) => [
-              {
-                id: row.id + "-q",
-                role: "user",
-                text: row.question,
-                sources: [],
-              },
-              {
-                id: row.id,
-                role: "assistant",
-                text: row.text,
-                sources: row.sources,
-              },
-            ]);
-            this.answerMode = history.at(-1)?.mode || "";
-          } catch (error) {
-            this.historyError = error.message;
-          }
         }
-        if (revision === this.loadRevision) {
-          this.materialId = this.materials[0]?.id || "";
-          await this.readDocument();
+        if (revision !== this.loadRevision) return;
+        if (targetMaterial && !this.materials.some((item) => item.id === targetMaterial)) {
+          this.docError = "引用资料已删除，或不属于当前课程。";
+        } else {
+          this.materialId = targetMaterial || this.materials[0]?.id || "";
         }
+        await Promise.all([
+          this.materialId ? this.readDocument(null, targetMaterial ? query : null) : null,
+          course && this.remoteCourse ? this.readHistory(courseId, revision) : null,
+        ]);
       } catch (error) {
-        if (revision === this.loadRevision) this.loadError = error.message;
+        if (revision === this.loadRevision && error.name !== "AbortError")
+          this.loadError = error.message;
       } finally {
         if (revision === this.loadRevision) this.loading = false;
       }
     },
-    async readDocument(source = null) {
+    async readHistory(courseId, revision) {
+      this.historyError = "";
+      try {
+        const history = await loadAssistantHistory(courseId);
+        if (revision !== this.loadRevision) return;
+        this.messages = history.flatMap((row) => [
+          { id: row.id + "-q", role: "user", text: row.question, sources: [] },
+          { id: row.id, role: "assistant", text: row.text, sources: row.sources },
+        ]);
+        this.answerMode = history.at(-1)?.mode || "";
+      } catch (error) {
+        if (revision === this.loadRevision && error.name !== "AbortError")
+          this.historyError = error.message;
+      }
+    },
+    retryDocument() {
+      if (!this.materialId) return this.load();
+      const query = this.$route.query;
+      const sourceQuery = !this.activeSource && query.material === this.materialId ? query : null;
+      return this.readDocument(this.activeSource, sourceQuery);
+    },
+    async readDocument(source = null, sourceQuery = null) {
       // 引用与读取共享版本号，迟到的文件响应不能覆盖后来选择的资料或课程。
       const revision = ++this.docRevision;
       this.activeSource = source ? { ...source } : null;
@@ -339,8 +344,15 @@ export default {
       this.docLoading = true;
       try {
         const result = await previewMaterial(item);
-        if (revision === this.docRevision && !this._isDestroyed)
+        if (revision === this.docRevision && !this._isDestroyed) {
           this.document = { ...result };
+          if (sourceQuery) {
+            this.activeSource = sourceFromRoute(this.document, sourceQuery);
+            if (this.activeSource) this.documentView = "text";
+            else if (sourceQuery.start !== undefined || sourceQuery.end !== undefined)
+              notify("引用位置已失效，已打开对应资料。");
+          }
+        }
       } catch (error) {
         if (revision === this.docRevision) this.docError = error.message;
       } finally {
@@ -382,6 +394,7 @@ export default {
           text: answer.text,
           sources: answer.sources || [],
         });
+        if (answer.sources?.length) recordGuideAction("answer", this.courseId);
         this.scroll();
       } catch (error) {
         if (error.name !== "AbortError")
@@ -419,6 +432,8 @@ export default {
         await this.$nextTick();
         this.focusSource();
       } else await this.readDocument(source);
+      if (this.activeSource?.materialId === source.materialId && this.sourceRange)
+        recordGuideAction("source", this.courseId);
     },
     clearSource() {
       this.activeSource = null;

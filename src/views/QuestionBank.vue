@@ -34,10 +34,93 @@
     </section>
     <div v-else class="content-with-aside">
       <section>
+        <article class="panel bank-drafts">
+          <h2>AI 练习草稿</h2>
+          <router-link v-if="$route.query.coach === '1'" :to="{ name: 'review-coach', query: { course: course.id } }"
+            class="text-button">返回复习教练</router-link>
+          <p class="muted">选择一个知识点，AI 将根据课程资料生成单选题。</p>
+          <p v-if="graphLoading" class="muted" role="status">正在读取课程星图…</p>
+          <div v-else-if="graphError" class="draft-status">
+            <p class="error-message" role="alert">{{ graphError }}</p>
+            <button class="text-button" type="button" @click="loadGraph">重新读取星图</button>
+          </div>
+          <div v-else-if="!graphNodes.length" class="draft-status">
+            <p class="muted">课程星图还没有知识点。</p>
+            <router-link :to="{ name: 'course-knowledge-edit', params: { id: course.id } }"
+              class="text-button">添加知识点</router-link>
+          </div>
+          <form v-else @submit.prevent="generateDrafts">
+            <div class="draft-fields">
+              <div>
+                <label class="field-label" for="draft-node">出题知识点</label>
+                <select id="draft-node" v-model="draftNodeId" class="input" required :disabled="busy || draftGenerating">
+                  <option value="" disabled>请选择知识点</option>
+                  <option v-for="node in graphNodes" :key="node.id" :value="node.id">{{ node.optionLabel }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="draft-material">参考资料</label>
+                <select id="draft-material" v-model="draftMaterialId" class="input"
+                  :disabled="busy || draftGenerating || materialsLoading || !draftMaterials.length">
+                  <option value="">{{ materialsLoading ? "正在读取资料…" : "自动查找相关资料" }}</option>
+                  <option v-for="material in draftMaterials" :key="material.id" :value="material.id">
+                    {{ material.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div v-if="materialsError" class="draft-status">
+              <p class="muted small" role="status">资料列表读取失败，仍可自动查找相关资料。</p>
+              <button class="text-button" type="button" @click="loadDraftMaterials">重新读取资料</button>
+            </div>
+            <div v-else-if="!materialsLoading && !draftMaterials.length" class="draft-status">
+              <p class="muted small">上传可提取文字的课程资料后即可出题。</p>
+              <router-link :to="{ name: 'course', params: { id: course.id } }" class="text-button">上传资料</router-link>
+            </div>
+            <button class="button primary draft-generate" :disabled="!canGenerateDrafts">
+              {{ draftGenerating ? "正在生成…" : "生成草稿" }}
+            </button>
+            <p v-if="draftGenerating" class="muted small" role="status">正在查找课程资料并生成题目。</p>
+          </form>
+          <p v-if="draftError" class="error-message" role="alert">{{ draftError }}</p>
+          <p v-if="draftResult" class="bank-result" role="status">
+            已入库 {{ draftResult.imported }} 题，跳过重复 {{ draftResult.skipped }} 题，当前共 {{ draftResult.total }} 题。
+          </p>
+          <section v-if="drafts.length" ref="draftReview" class="paste-preview draft-review" tabindex="-1"
+            aria-label="审核练习草稿">
+            <h3>审核 {{ drafts.length }} 道草稿</h3>
+            <p class="muted small">核对答案和资料原文，勾选要入库的题目。</p>
+            <ol>
+              <li v-for="(q, i) in drafts" :key="i">
+                <label class="draft-approval">
+                  <input v-model="approvedDrafts" type="checkbox" :value="i" :disabled="busy || draftGenerating" />
+                  <strong>{{ q.title }}</strong>
+                </label>
+                <p class="muted small">知识点 {{ q.point }} · 正确选项 {{ letters[q.answer] }}</p>
+                <ul class="bank-options">
+                  <li v-for="(option, j) in q.options" :key="j" :class="{ 'is-correct': j === q.answer }">
+                    <b>{{ letters[j] }}.</b><span>{{ option }}</span>
+                  </li>
+                </ul>
+                <p class="paste-explanation">解析：{{ q.explanation }}</p>
+                <figure v-if="q.sourceEvidence" class="draft-evidence">
+                  <figcaption>
+                    <span>{{ q.sourceEvidence.name }}</span>
+                    <router-link v-if="q.sourceEvidence.materialId" :to="draftSource(q.sourceEvidence)"
+                      class="text-button" target="_blank" rel="opener" aria-label="查看原文（在新标签页打开）">查看原文</router-link>
+                  </figcaption>
+                  <blockquote>{{ q.sourceEvidence.excerpt }}</blockquote>
+                </figure>
+              </li>
+            </ol>
+            <button class="button primary" type="button" :disabled="busy || draftGenerating || !approvedDrafts.length"
+              @click="importDrafts">确认入库<span v-if="approvedDrafts.length">（{{ approvedDrafts.length }} 题）</span></button>
+          </section>
+        </article>
         <article class="panel bank-import">
           <h2>从 JSON 导入题库</h2>
           <p class="muted">
-            每次 1～200 题，文件不超过 100 KB。导入只追加，完整重复题目会跳过。
+            每次 1～200 题，文件不超过 100 KB。同一课程内题干和选项相同的题目会跳过，选项顺序不影响判断。
           </p>
           <div class="button-row">
             <label class="button primary bank-upload">选择 JSON 文件
@@ -87,17 +170,25 @@
             <h2>
               已有题目 <span class="muted">{{ questions.length }}</span>
             </h2>
-            <button class="text-button" @click="refresh">刷新题库</button>
+            <button class="text-button" :disabled="busy" @click="refresh">刷新题库</button>
             <button class="button secondary small-button" :disabled="busy" @click="singleOpen = true">
               手动新增题目
             </button>
           </div>
-          <p v-if="!questions.length" class="muted">
-            这门课程还没有题目，先下载模板填写后导入。
-          </p>
+          <p v-if="!questions.length" class="muted">这门课程还没有题目。</p>
           <ol>
             <li v-for="q in questions" :key="q.id">
-              <strong>{{ q.title }}</strong><span>{{ q.point }} · {{ q.options.length }} 个选项</span>
+              <div class="bank-question-heading">
+                <strong>{{ q.title }}</strong>
+                <div class="bank-question-actions">
+                  <button v-if="graphNodes.length && !graphNodeById.has(q.knowledgeNodeId)" type="button"
+                    class="text-button" :disabled="busy" @click="openNodeLink(q)">关联知识点</button>
+                  <button type="button" class="text-button bank-delete-button" :disabled="busy"
+                    @click="openQuestionDelete(q)">删除<span class="sr-only">题目：{{ q.title }}</span></button>
+                </div>
+              </div>
+              <span>{{ q.point }} · {{ q.options.length }} 个选项</span>
+              <span v-if="graphNodeById.has(q.knowledgeNodeId)">已关联 {{ graphNodeById.get(q.knowledgeNodeId).optionLabel }}</span>
               <ul class="bank-options">
                 <li v-for="(option, j) in q.options" :key="j">
                   <b>{{ letters[j] }}.</b><span>{{ option }}</span>
@@ -166,9 +257,18 @@
         <p id="single-answer-help" class="muted small single-field-help">
           填写选项后，从这里选择正确答案，例如 A. 可靠的字节流传输。
         </p>
-        <label class="field-label" for="single-point">知识点</label>
-        <input id="single-point" v-model="single.point" class="input" required maxlength="80" placeholder="例如：TCP 可靠传输"
-          :disabled="busy" />
+        <label class="field-label" for="single-node">关联星图知识点（可选）</label>
+        <select id="single-node" v-model="single.knowledgeNodeId" class="input" :disabled="busy || !graphNodes.length">
+          <option value="">不关联星图</option>
+          <option v-for="node in graphNodes" :key="node.id" :value="node.id">{{ node.optionLabel }}</option>
+        </select>
+        <p v-if="!graphNodes.length" class="muted small single-field-help">
+          {{ graphLoading ? "正在读取课程星图…" : "仍可手动填写知识点名称。" }}
+        </p>
+        <label class="field-label" for="single-point">知识点名称</label>
+        <input id="single-point" v-model="single.point" class="input" :required="!singleNode" maxlength="80"
+          :placeholder="singleNode ? singleNode.label : '例如：TCP 可靠传输'" :disabled="busy" />
+        <p v-if="singleNode" class="muted small single-field-help">留空时使用星图中的名称。</p>
         <label class="field-label" for="single-explanation">答案解析</label>
         <textarea id="single-explanation" v-model="single.explanation" class="input" required maxlength="5000" rows="3"
           placeholder="例如：TCP 通过序号、确认和重传等机制，提供可靠的字节流传输服务。" :disabled="busy" />
@@ -251,12 +351,41 @@
         </div>
       </section>
     </AppModal>
+    <AppModal v-if="linkingQuestion" title="关联星图知识点" @close="closeNodeLink">
+      <form @submit.prevent="saveNodeLink">
+        <p class="muted link-question-title">{{ linkingQuestion.title }}</p>
+        <label class="field-label" for="link-question-node">选择星图知识点</label>
+        <select id="link-question-node" v-model="linkNodeId" class="input" required :disabled="busy">
+          <option value="" disabled>请选择知识点</option>
+          <option v-for="node in graphNodes" :key="node.id" :value="node.id">{{ node.optionLabel }}</option>
+        </select>
+        <p v-if="linkError" class="error-message" role="alert">{{ linkError }}</p>
+        <div class="modal-actions">
+          <button class="button secondary" type="button" :disabled="busy" @click="closeNodeLink">取消</button>
+          <button class="button primary" :disabled="busy || !linkNodeId">{{ busy ? "正在保存…" : "保存关联" }}</button>
+        </div>
+      </form>
+    </AppModal>
+    <AppModal v-if="questionToDelete" title="删除题目" @close="closeQuestionDelete">
+      <form @submit.prevent="confirmQuestionDelete">
+        <p class="question-delete-title">{{ questionToDelete.title }}</p>
+        <p class="muted">确认后，该题将从课程题库移除，已有作答、错题和复习计划会保留。</p>
+        <p v-if="deleteError" class="error-message" role="alert">{{ deleteError }}</p>
+        <div class="modal-actions">
+          <button type="button" class="button secondary" :disabled="busy" @click="closeQuestionDelete">取消</button>
+          <button class="button danger" :disabled="busy">{{ busy ? "正在删除…" : "确认删除" }}</button>
+        </div>
+      </form>
+    </AppModal>
   </div>
 </template>
 <script>
 import { state, notify } from "../store";
-import { getCourse } from "../services/courses";
-import { loadQuestions, importQuestions } from "../services/questions";
+import { getCourse, loadMaterials } from "../services/courses";
+import { loadCourseGraph } from "../services/course-knowledge";
+import { loadQuestions, importQuestions, deleteQuestion } from "../services/questions";
+import { associateQuestionNode, generatePracticeDrafts } from "../services/question-authoring";
+import { takeCoachDraft } from "../services/review-coach";
 import AppModal from "../components/AppModal.vue";
 import { createSingleQuestion } from "../services/platform";
 import {
@@ -272,6 +401,7 @@ export default {
     state,
     course: null,
     questions: [],
+    questionsRevision: 0,
     loading: true,
     loadError: "",
     busy: false,
@@ -291,7 +421,25 @@ export default {
     jsonPayload: null,
     jsonError: "",
     jsonResult: null,
-    single: { title: "", options: "", answer: "", point: "", explanation: "" },
+    single: { title: "", options: "", answer: "", point: "", explanation: "", knowledgeNodeId: "" },
+    graph: null,
+    graphLoading: false,
+    graphError: "",
+    linkingQuestion: null,
+    questionToDelete: null,
+    deleteError: "",
+    linkNodeId: "",
+    linkError: "",
+    draftMaterials: [],
+    materialsLoading: false,
+    materialsError: "",
+    draftNodeId: "",
+    draftMaterialId: "",
+    draftGenerating: false,
+    draftError: "",
+    draftResult: null,
+    drafts: [],
+    approvedDrafts: [],
   }),
   computed: {
     jsonExample() {
@@ -303,8 +451,30 @@ export default {
         .map((s) => s.trim())
         .filter(Boolean);
     },
+    graphNodes() {
+      if (!this.graph) return [];
+      const groups = new Map(this.graph.groups.map((group) => [group.id, group.title]));
+      return this.graph.nodes.map((node) => {
+        const group = groups.get(node.groupId);
+        return { ...node, optionLabel: group ? `${group} / ${node.label}` : node.label };
+      });
+    },
+    graphNodeById() {
+      return new Map(this.graphNodes.map((node) => [node.id, node]));
+    },
+    routeNode() {
+      return this.graphNodeById.get(this.$route.query.node);
+    },
+    singleNode() {
+      return this.graphNodeById.get(this.single.knowledgeNodeId);
+    },
+    canGenerateDrafts() {
+      return !!this.draftNodeId && !this.busy && !this.draftGenerating && !this.materialsLoading &&
+        (this.draftMaterials.length > 0 || !!this.materialsError);
+    },
   },
   watch: {
+    "$route.query.node": "selectRouteNode",
     jsonText() {
       // 编辑后必须重新校验，不能将旧预览与新输入混在一起保存。
       this.jsonPayload = null;
@@ -319,7 +489,34 @@ export default {
   created() {
     this.load();
   },
+  beforeDestroy() {
+    this.draftRequest?.abort();
+  },
   methods: {
+    openQuestionDelete(question) {
+      this.deleteError = "";
+      this.questionToDelete = question;
+    },
+    closeQuestionDelete() {
+      if (!this.busy) this.questionToDelete = null;
+    },
+    async confirmQuestionDelete() {
+      if (this.busy || !this.questionToDelete) return;
+      const { id } = this.questionToDelete;
+      this.busy = true;
+      this.deleteError = "";
+      try {
+        await deleteQuestion(this.course.id, id);
+        this.questionsRevision += 1;
+        this.questions = this.questions.filter((question) => question.id !== id);
+        this.questionToDelete = null;
+        notify("题目已从题库移除");
+      } catch (error) {
+        this.deleteError = error.message;
+      } finally {
+        this.busy = false;
+      }
+    },
     fillJsonExample() {
       if (this.jsonText.trim() || this.busy) return;
       this.jsonText = this.jsonExample;
@@ -353,7 +550,7 @@ export default {
         this.jsonResult = await importQuestions(this.course.id, body);
         this.jsonPayload = null;
         await this.refresh();
-        notify("题目已保存到当前课程，可进入练习");
+        notify(this.jsonResult.imported ? "题目已保存到当前课程，可进入练习" : "题目已存在，本次没有新增");
       } catch (error) {
         const detail = error.details?.[0];
         this.jsonError = detail
@@ -372,19 +569,137 @@ export default {
       try {
         this.course = await getCourse(this.$route.params.id);
         this.selectedCourseId = this.course?.id || "";
-        if (this.course?._remote && state.mode === "account")
-          await this.refresh();
+        if (this.course?._remote && state.mode === "account") {
+          await Promise.all([this.loadGraph(), this.loadDraftMaterials(), this.refresh()]);
+          if (this.$route.query.coach === "1") {
+            const draft = takeCoachDraft(this.course.id, this.$route.query.node);
+            if (draft && this.routeNode && this.canGenerateDrafts) this.generateDrafts(draft.count);
+          }
+        }
       } catch (error) {
         this.loadError = error.message;
       } finally {
         this.loading = false;
       }
     },
-    async refresh() {
+    async loadGraph() {
+      if (this.graphLoading) return;
+      this.graphLoading = true;
+      this.graphError = "";
       try {
-        this.questions = await loadQuestions(this.course.id);
+        this.graph = await loadCourseGraph(this.course.id);
+        this.selectRouteNode();
       } catch (error) {
-        this.loadError = error.message;
+        this.graphError = error.message;
+      } finally {
+        this.graphLoading = false;
+      }
+    },
+    selectRouteNode() {
+      if (!this.routeNode) return;
+      this.draftNodeId = this.routeNode.id;
+      this.single.knowledgeNodeId = this.routeNode.id;
+    },
+    openNodeLink(question) {
+      this.linkingQuestion = question;
+      this.linkNodeId = this.routeNode?.id || "";
+      this.linkError = "";
+    },
+    closeNodeLink() {
+      if (!this.busy) this.linkingQuestion = null;
+    },
+    async saveNodeLink() {
+      if (this.busy || !this.linkingQuestion || !this.graphNodeById.has(this.linkNodeId)) return;
+      this.busy = true;
+      this.linkError = "";
+      try {
+        const updated = await associateQuestionNode(this.course.id, this.linkingQuestion.id, this.linkNodeId);
+        this.questionsRevision += 1;
+        this.questions = this.questions.map((q) => q.id === updated.id ? updated : q);
+        this.linkingQuestion = null;
+        notify("已关联星图知识点");
+      } catch (error) {
+        this.linkError = error.details?.[0]?.message || error.message;
+      } finally {
+        this.busy = false;
+      }
+    },
+    async loadDraftMaterials() {
+      if (this.materialsLoading) return;
+      this.materialsLoading = true;
+      this.materialsError = "";
+      try {
+        const materials = await loadMaterials(this.course);
+        this.draftMaterials = materials.filter((item) => item._remote && item.parseStatus === "ready");
+        if (!this.draftMaterials.some((item) => item.id === this.draftMaterialId))
+          this.draftMaterialId = "";
+      } catch (error) {
+        this.materialsError = error.message;
+      } finally {
+        this.materialsLoading = false;
+      }
+    },
+    async generateDrafts(count) {
+      if (!this.canGenerateDrafts) return;
+      this.draftGenerating = true;
+      this.draftError = "";
+      this.draftResult = null;
+      this.draftRequest = new AbortController();
+      try {
+        const { questions } = await generatePracticeDrafts({
+          courseId: this.course.id,
+          knowledgeNodeId: this.draftNodeId,
+          ...(Number.isInteger(count) ? { count } : {}),
+          ...(this.draftMaterialId ? { materialId: this.draftMaterialId } : {}),
+        }, this.draftRequest.signal);
+        if (!questions.length) throw new Error("没有生成可用草稿，请换一份资料后重试。");
+        this.approvedDrafts = [];
+        this.drafts = questions;
+        await this.$nextTick();
+        this.$refs.draftReview?.focus();
+      } catch (error) {
+        if (error.name !== "AbortError") this.draftError = error.message;
+      } finally {
+        this.draftGenerating = false;
+        this.draftRequest = null;
+      }
+    },
+    async importDrafts() {
+      if (this.busy || this.draftGenerating || !this.approvedDrafts.length) return;
+      const approved = new Set(this.approvedDrafts);
+      const questions = this.drafts.filter((_, index) => approved.has(index));
+      this.busy = true;
+      this.draftError = "";
+      this.draftResult = null;
+      try {
+        this.draftResult = await importQuestions(this.course.id, { questions, deduplicateSimilar: true });
+        this.drafts = this.drafts.filter((_, index) => !approved.has(index));
+        this.approvedDrafts = [];
+        await this.refresh();
+        notify(this.draftResult.imported ? "已审核的草稿已入库" : "题目已存在，本次没有新增");
+      } catch (error) {
+        const detail = error.details?.[0];
+        this.draftError = detail ? detail.field + "：" + detail.message : error.message;
+      } finally {
+        this.busy = false;
+      }
+    },
+    draftSource(source) {
+      const query = { course: this.course.id, material: source.materialId };
+      if (Number.isInteger(source.start) && Number.isInteger(source.end) && source.start >= 0 && source.end > source.start) {
+        query.start = String(source.start);
+        query.end = String(source.end);
+      }
+      if (Number.isInteger(source.page) && source.page > 0) query.page = String(source.page);
+      return { name: "studio", query };
+    },
+    async refresh() {
+      const revision = ++this.questionsRevision;
+      try {
+        const questions = await loadQuestions(this.course.id);
+        if (revision === this.questionsRevision) this.questions = questions;
+      } catch (error) {
+        if (revision === this.questionsRevision) this.loadError = error.message;
       }
     },
     async readFile(event) {
@@ -416,7 +731,7 @@ export default {
       try {
         this.result = await importQuestions(this.course.id, this.payload);
         await this.refresh();
-        notify("题库已保存到课程");
+        notify(this.result.imported ? "题库已保存到课程" : "题目已存在，本次没有新增");
       } catch (error) {
         const detail = error.details?.[0];
         this.importError = detail
@@ -457,10 +772,11 @@ export default {
           title: this.single.title,
           options: this.singleOptions,
           answer: this.single.answer,
-          point: this.single.point,
+          point: this.single.point.trim() || this.singleNode?.label || "",
           explanation: this.single.explanation,
         };
         parseQuestionImport(JSON.stringify({ questions: [body] }));
+        if (this.singleNode) body.knowledgeNodeId = this.singleNode.id;
         this.busy = true;
         await createSingleQuestion(this.course.id, body);
         this.singleOpen = false;
@@ -470,6 +786,7 @@ export default {
           answer: "",
           point: "",
           explanation: "",
+          knowledgeNodeId: this.routeNode?.id || "",
         };
         await this.refresh();
         notify("题目已保存");
@@ -738,8 +1055,96 @@ export default {
   margin-top: 20px;
 }
 
+.bank-drafts {
+  padding: 26px;
+  margin-bottom: 20px;
+}
+
+.draft-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.draft-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 12px;
+}
+
+.draft-generate {
+  margin-top: 18px;
+}
+
+.draft-approval {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    margin: 4px 0 0;
+    flex: 0 0 auto;
+    accent-color: @cyan;
+  }
+}
+
+.draft-evidence {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid @border;
+  background: @bg;
+  color: @muted;
+  font-size: 13px;
+
+  figcaption {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    overflow-wrap: anywhere;
+  }
+
+  blockquote {
+    margin: 6px 0 0;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
+
+.draft-review .button {
+  margin-top: 12px;
+}
+
 .bank-preview .button {
   margin-top: 20px;
+}
+
+.bank-question-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.bank-question-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.bank-delete-button {
+  color: #ffb2ba;
+}
+
+.link-question-title,
+.question-delete-title {
+  overflow-wrap: anywhere;
 }
 
 .right-rail p {
@@ -751,9 +1156,15 @@ export default {
 @media (max-width: 480px) {
 
   .bank-status,
+  .bank-drafts,
   .bank-import,
   .bank-list {
     padding: 18px;
+  }
+
+  .draft-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 }
 </style>

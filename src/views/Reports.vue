@@ -18,7 +18,7 @@
         <option value="30">最近 30 天</option>
       </select>
     </div>
-    <p v-if="loading" class="panel" role="status">正在读取学习报告…</p>
+    <p v-if="loading && !summary" class="panel" role="status">正在读取学习报告…</p>
     <p v-else-if="loadError" class="error-message" role="alert">
       {{ loadError }}
       <button class="text-button" @click="load">重新加载</button>
@@ -27,7 +27,7 @@
       <AppIcon name="chart" :size="44" />
       <h2>先积累一次真实的练习</h2>
       <p>完成答题后，这里会展示你的正确率、用时和知识点记录。</p>
-      <router-link to="/app/practice" class="button primary">开始练习</router-link>
+      <router-link :to="{ path: '/app/practice', query: pointLocation({}).query }" class="button primary">开始练习</router-link>
     </div>
     <template v-else>
       <div class="content-with-aside">
@@ -55,20 +55,13 @@
               </strong>
             </div>
           </div>
-          <section class="panel report-chart">
+          <section class="panel report-chart" :aria-busy="loading">
             <div class="panel-heading">
               <h2>最近七天的练习节奏</h2>
-              <span class="small muted">单位：作答次数</span>
+              <span class="small muted" role="status">{{ loading ? "正在更新…" : "单位：作答次数" }}</span>
             </div>
-            <div :key="range" class="chart-bars chart-animated" role="img" aria-label="最近七天每日作答次数柱状图">
-              <div v-for="(day, index) in days" :key="day.key" class="chart-column"
-                :style="{ '--bar-delay': index * 65 + 'ms' }">
-                <strong>{{ day.count || "" }}</strong>
-                <div :style="{
-                  height: Math.max(2, (day.count / maxCount) * 150) + 'px',
-                }" />
-                <span>{{ day.label }}</span>
-              </div>
+            <div class="report-plot">
+              <PracticeActivityChart :days="days" />
             </div>
           </section>
           <section class="panel">
@@ -86,13 +79,13 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="point in points" :key="point.name">
+                  <tr v-for="point in points" :key="JSON.stringify([point.courseId, point.knowledgeNodeId, point.name])">
                     <td>{{ point.name }}</td>
                     <td>{{ point.count }}</td>
                     <td>{{ point.rate }}%</td>
                     <td>
-                      <router-link to="/app/mistakes" class="text-button">{{
-                        point.rate < 80 ? "继续巩固" : "回顾记录" }}</router-link>
+                      <router-link :to="pointLocation(point)" class="text-button">{{
+                        point.knowledgeNodeId ? "练习本知识点" : "回顾课程错题" }}</router-link>
                     </td>
                   </tr>
                 </tbody>
@@ -106,7 +99,7 @@
             <p class="muted">
               {{
                 rate < 80 ? "回看错题对应的定义，再用例子检验理解。" : "保持节奏，安排一次间隔复习。" }} </p>
-                <router-link to="/app/mistakes" class="button secondary full-width">
+                <router-link :to="pointLocation({})" class="button secondary full-width">
                   回看错题
                 </router-link>
                 <router-link to="/app/plan" class="button primary full-width">
@@ -131,7 +124,10 @@ import AnimatedRing from "../components/AnimatedRing.vue";
 import { loadReport } from "../services/questions";
 export default {
   name: "Reports",
-  components: { AnimatedRing },
+  components: {
+    AnimatedRing,
+    PracticeActivityChart: () => import("../components/PracticeActivityChart.vue"),
+  },
   data: () => ({
     state,
     range: "all",
@@ -165,11 +161,16 @@ export default {
     days() {
       return this.summary?.days || [];
     },
-    maxCount() {
-      return Math.max(1, ...this.days.map((d) => d.count));
-    },
   },
   methods: {
+    pointLocation(point) {
+      const course = point.courseId || this.$route.query.course;
+      const query = typeof course === "string" && course ? { course } : {};
+      if (query.course && point.knowledgeNodeId) {
+        return { path: "/app/practice", query: { ...query, node: point.knowledgeNodeId } };
+      }
+      return { path: "/app/mistakes", query };
+    },
     async load() {
       if (state.mode !== "account") return;
       const revision = ++this.loadRevision;
@@ -231,6 +232,7 @@ export default {
       this.load();
     },
     "$route.query.course"() {
+      this.summary = null;
       this.load();
     },
   },
@@ -288,42 +290,9 @@ export default {
   margin-bottom: 20px;
 }
 
-.chart-bars {
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end;
-  height: 220px;
-  border-bottom: 1px solid #29475c;
-  padding: 0 10px 8px;
-  background: repeating-linear-gradient(to top,
-      transparent 0,
-      transparent 49px,
-      #173b512e 50px);
-
-  .chart-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 10%;
-    gap: 8px;
-
-    >div {
-      width: 65%;
-      min-width: 12px;
-      border-radius: 3px 3px 0 0;
-      background: linear-gradient(0deg, #0e85d1, @cyan);
-    }
-
-    span {
-      font-size: 11px;
-      color: #93b6d2;
-    }
-
-    strong {
-      font-size: 11px;
-      font-weight: 500;
-    }
-  }
+.report-plot {
+  min-width: 0;
+  height: clamp(210px, 30vw, 250px);
 }
 
 .table-wrap {
@@ -364,32 +333,6 @@ table {
         font-size: 10px;
       }
     }
-  }
-
-  .chart-bars {
-    padding: 0;
-
-    .chart-column span {
-      font-size: 10px;
-    }
-  }
-}
-
-.reveal-visible .chart-animated .chart-column>div {
-  transform-origin: center bottom;
-  animation: chart-rise 0.75s cubic-bezier(0.2, 0.75, 0.25, 1) both;
-  animation-delay: calc(var(--reveal-delay, 0ms) + var(--bar-delay, 0ms));
-}
-
-@keyframes chart-rise {
-  from {
-    transform: scaleY(0);
-    opacity: 0.3;
-  }
-
-  to {
-    transform: scaleY(1);
-    opacity: 1;
   }
 }
 </style>

@@ -6,62 +6,58 @@
   }" :data-opening="String(opening)" @wheel.passive="introGesture('wheel', $event)"
     @touchstart.passive="introGesture('touchStart', $event)" @touchend.passive="introGesture('touchEnd', $event)">
     <div class="product-horizon" aria-hidden="true" />
-    <PublicHeader :inert="introOpen ? '' : null">
-      <BrandLogo />
-      <nav class="landing-links" aria-label="产品导航">
-        <a href="#workflow" @click.prevent="explore">产品体验</a>
-        <a href="#product-principles" @click.prevent="scrollTo('product-principles')">学习方式</a>
-      </nav>
-      <router-link to="/login" class="product-login">
-        登录学习空间
-        <AppIcon name="arrow" :size="17" />
-      </router-link>
-    </PublicHeader>
-    <section class="landing-hero" aria-labelledby="hero-heading">
-      <div class="hero-copy" :inert="introOpen ? '' : null">
-        <p class="hero-overline"><span />大学生的 AI 学习空间</p>
-        <h1 id="hero-heading" ref="heading" tabindex="-1">
-          把零散知识，<br />连成自己的<br class="desktop-break" />学习路径。
-        </h1>
-        <p class="hero-description">
-          从一份课堂讲义，到一次真正的理解。<br />资料、提问、练习与复习，在这里连成一条线。
-        </p>
-        <div class="hero-actions">
-          <button class="product-primary" :disabled="busy" @click="experience">
-            {{ busy ? "正在进入…" : "进入学习空间" }}
-            <AppIcon name="arrow" :size="18" />
-          </button>
-          <button type="button" class="product-explore" @click="$refs.story.startGuide()">
-            <span aria-hidden="true">
-              <AppIcon name="play" :size="13" />
-            </span>跟着示例走一遍
-          </button>
+    <div class="landing-first-screen">
+      <PublicHeader :inert="introOpen ? '' : null">
+        <BrandLogo />
+        <nav class="landing-links" aria-label="产品导航">
+          <a href="#workflow" @click.prevent="explore">产品体验</a>
+          <a href="#product-principles" @click.prevent="scrollTo('product-principles')">学习方式</a>
+        </nav>
+        <router-link to="/login" class="product-login">
+          登录学习空间
+          <AppIcon name="arrow" :size="17" />
+        </router-link>
+      </PublicHeader>
+      <section class="landing-hero" aria-labelledby="hero-heading">
+        <div class="hero-copy" :inert="introOpen ? '' : null">
+          <p class="hero-overline"><span />大学生的 AI 学习空间</p>
+          <h1 id="hero-heading" ref="heading" tabindex="-1">
+            把零散知识，<br />连成自己的<br class="desktop-break" />学习路径。
+          </h1>
+          <p class="hero-description">
+            从一份课堂讲义，到一次真正的理解。<br />资料、提问、练习与复习，在这里连成一条线。
+          </p>
+          <div class="hero-actions">
+            <button class="product-primary" :disabled="busy" @click="experience">
+              {{ busy ? "正在进入…" : "进入学习空间" }}
+              <AppIcon name="arrow" :size="18" />
+            </button>
+            <button type="button" class="product-explore" @click="$refs.story.startGuide()">
+              <span aria-hidden="true">
+                <AppIcon name="play" :size="13" />
+              </span>跟着示例走一遍
+            </button>
+          </div>
+          <p v-if="error" class="error-message" role="alert">{{ error }}</p>
+          <p class="hero-footnote">从你的课程出发，按自己的节奏学习。</p>
         </div>
-        <p v-if="error" class="error-message" role="alert">{{ error }}</p>
-        <p class="hero-footnote">从你的课程出发，按自己的节奏学习。</p>
-      </div>
-      <div ref="visual" class="hero-visual">
-        <div ref="scene" class="hero-scene-shell" :class="{ 'intro-fixed': introOpen }">
-          <ProductHeroScene ref="art" :intro="introOpen" :active="sceneReady" @enter="enter(false)" />
+        <a href="#product-principles" class="hero-scroll"
+          :class="{ 'is-ready': motionReady, 'is-animated': motionReady && allowMotion }"
+          :inert="motionReady ? null : ''" @click.prevent="scrollTo('product-principles', true)">
+          <span class="hero-scroll-icon" aria-hidden="true">
+            <span class="hero-scroll-arrow"><AppIcon name="arrow" :size="20" /></span>
+          </span>
+          <span>向下探索</span>
+        </a>
+        <div ref="visual" class="hero-visual">
+          <div ref="scene" class="hero-scene-shell" :class="{ 'intro-fixed': introOpen }">
+            <ProductHeroScene ref="art" :intro="introOpen" :active="sceneReady" @enter="enter(false)" />
+          </div>
         </div>
-      </div>
-      <a href="#workflow" class="hero-scroll" :inert="introOpen ? '' : null" @click.prevent="explore">
-        <span />继续探索<span class="scroll-rule" />
-      </a>
-    </section>
-    <section id="product-principles" class="product-principles" :inert="introOpen ? '' : null" aria-label="学习方式">
-      <p>让每一次学习，<br /><strong>有依据，也有方向。</strong></p>
-      <div>
-        <AppIcon name="file" :size="21" /><span>课程资料<small>讲义、笔记，各自归位</small></span>
-      </div>
-      <div>
-        <AppIcon name="graph" :size="22" /><span>自己的连接<small>知识点与顺序，由你决定</small></span>
-      </div>
-      <div>
-        <AppIcon name="calendar" :size="22" /><span>持续的积累<small>练习、错题，连接复习</small></span>
-      </div>
-    </section>
-    <LearningStory ref="story" :enabled="!introOpen && !opening" :inert="introOpen ? '' : null"
+      </section>
+    </div>
+    <LandingPrinciples :animated="smoothScrollReady" :inert="introOpen ? '' : null" />
+    <LearningStory ref="story" :enabled="!introOpen && !opening" :scroll-page="scrollPage" :inert="introOpen ? '' : null"
       @enter-workspace="experience" />
     <section class="product-closing" :inert="introOpen ? '' : null">
       <LearningBloom :enabled="motionReady" />
@@ -97,6 +93,9 @@
 </template>
 <script>
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lenis from "lenis";
+import "lenis/dist/lenis.css";
 import PublicHeader from "../components/PublicHeader.vue";
 import PublicFooter from "../components/PublicFooter.vue";
 import BrandLogo from "../components/BrandLogo.vue";
@@ -104,6 +103,7 @@ import ProductHeroScene from "../components/product/ProductHeroScene.vue";
 import ProductIntro from "../components/product/ProductIntro.vue";
 import LearningStory from "../components/product/LearningStory.vue";
 import LearningBloom from "../components/product/LearningBloom.vue";
+import LandingPrinciples from "../components/product/LandingPrinciples.vue";
 import { createTextReveals } from "../utils/textMotion";
 import { navigation } from "../utils/navigation";
 import { state, persist } from "../store";
@@ -127,6 +127,7 @@ export default {
     ProductIntro,
     LearningStory,
     LearningBloom,
+    LandingPrinciples,
   },
   data() {
     const intro =
@@ -151,6 +152,9 @@ export default {
     motionReady() {
       return this.textReady && !this.opening;
     },
+    smoothScrollReady() {
+      return this.motionReady && this.allowMotion;
+    },
     allowMotion() {
       return motionAllowed();
     },
@@ -169,9 +173,13 @@ export default {
     textReady() {
       this.$nextTick(this.refreshText);
     },
+    smoothScrollReady() {
+      this.syncSmoothScroll();
+    },
   },
   mounted() {
     this.syncRoute();
+    this.syncSmoothScroll();
     this.$nextTick(this.refreshText);
     this._resize = () => {
       if (this.opening) this._entry?.progress(1);
@@ -179,6 +187,7 @@ export default {
     window.addEventListener("resize", this._resize);
   },
   beforeDestroy() {
+    this.destroySmoothScroll();
     this._textCleanup?.();
     cancelAnimationFrame(this._unlockFrame);
     this._entryContext?.revert();
@@ -186,6 +195,24 @@ export default {
     window.removeEventListener("resize", this._resize);
   },
   methods: {
+    syncSmoothScroll() {
+      if (!this.smoothScrollReady) {
+        this.destroySmoothScroll();
+        return;
+      }
+      if (this._lenis) return;
+      this._lenis = new Lenis({
+        eventsTarget: this.$el,
+        lerp: 0.12,
+        allowNestedScroll: true,
+        autoRaf: true,
+      });
+      this._lenis.on("scroll", ScrollTrigger.update);
+    },
+    destroySmoothScroll() {
+      this._lenis?.destroy();
+      this._lenis = null;
+    },
     refreshText() {
       if (this._isDestroyed || this._isBeingDestroyed) return;
       this._textCleanup?.();
@@ -193,7 +220,7 @@ export default {
       if (this.textReady && this.allowMotion)
         this._textCleanup = createTextReveals(
           this.$el,
-          "#hero-heading, .hero-description, .product-principles > p, .product-closing > p, .product-closing > h2",
+          "#hero-heading, .hero-description, .product-closing > p, .product-closing > h2",
           { delay: this.opening ? 0.32 : 0 },
         );
     },
@@ -211,6 +238,7 @@ export default {
       }
     },
     showIntro() {
+      this.destroySmoothScroll();
       cancelAnimationFrame(this._unlockFrame);
       this._entryContext?.revert();
       this.opening = false;
@@ -309,7 +337,7 @@ export default {
       }, this.$el);
     },
     replay() {
-      window.scrollTo({ top: 0, behavior: "auto" });
+      this.scrollPage(0, true);
       if (this.$route.path === "/" && this.$route.query.intro === "1")
         this.showIntro();
       else
@@ -329,17 +357,27 @@ export default {
     explore() {
       this.scrollTo("workflow");
     },
-    scrollTo(id) {
-      if (id === "top")
-        window.scrollTo({
-          top: 0,
-          behavior: this.allowMotion ? "smooth" : "auto",
-        });
-      else
-        document.getElementById(id)?.scrollIntoView({
-          behavior: this.allowMotion ? "smooth" : "auto",
-          block: "start",
-        });
+    scrollTo(id, focus = false) {
+      if (id === "top") {
+        this.scrollPage(0);
+        return;
+      }
+      const target = document.getElementById(id);
+      if (!target) return;
+      if (focus) target?.focus({ preventScroll: true });
+      this.scrollPage(target);
+    },
+    scrollPage(target, immediate = false) {
+      if (this._lenis) {
+        // 浏览器可能刚通过键盘或焦点滚动。锚点以实际视口位置计算。
+        const top = typeof target === "number" ? target
+          : window.scrollY + target.getBoundingClientRect().top - (parseFloat(getComputedStyle(target).scrollMarginTop) || 0);
+        this._lenis.scrollTo(top, { immediate });
+        return;
+      }
+      const behavior = immediate || !this.allowMotion ? "instant" : "smooth";
+      if (typeof target === "number") window.scrollTo({ top: target, behavior });
+      else target.scrollIntoView({ block: "start", behavior });
     },
     async experience() {
       if (this.busy) return;
@@ -371,7 +409,8 @@ export default {
     position: relative;
     z-index: 4;
     max-width: 1500px;
-    margin: auto;
+    width: 100%;
+    margin: 0 auto;
     padding: 30px 5%;
     min-height: 102px;
   }
@@ -383,6 +422,12 @@ export default {
     padding: 30px 45px;
     gap: 35px;
   }
+}
+
+.landing-first-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
 }
 
 .product-horizon {
@@ -447,10 +492,11 @@ export default {
 
 .landing-hero {
   position: relative;
+  flex: 1;
+  width: 100%;
   max-width: 1410px;
-  margin: auto;
-  min-height: 710px;
-  padding: 75px 5% 100px;
+  margin: 0 auto;
+  padding: clamp(32px, 8svh, 75px) 5% clamp(65px, 10svh, 100px);
   display: grid;
   grid-template-columns: 0.92fr 1.1fr;
   gap: 15px;
@@ -584,73 +630,60 @@ export default {
 
 .hero-scroll {
   position: absolute;
-  bottom: 22px;
-  left: 5%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 9px;
+  z-index: 4;
+  top: min(calc(88svh - 102px), calc(100% - 76px));
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
-  color: #537e99;
+  color: #a2cadf;
+  white-space: nowrap;
 
-  >span:first-child {
-    height: 4px;
-    width: 4px;
-    background: #4589a7;
-    border-radius: 50%;
+  &:not(.is-ready) {
+    visibility: hidden;
   }
 
-  .scroll-rule {
-    display: block;
-    width: 60px;
-    height: 1px;
-    background: #244d64;
-    margin-left: 10px;
+  &:hover, &:focus-visible {
+    color: #e2f8ff;
+
+    .hero-scroll-icon {
+      background: #12394d;
+      border-color: #76daef;
+    }
   }
 }
 
-.product-principles {
-  position: relative;
-  max-width: 1280px;
-  padding: 32px 44px;
-  margin: auto;
+.hero-scroll-icon {
   display: grid;
-  grid-template-columns: 1.08fr repeat(3, 1fr);
-  gap: 30px;
-  border-top: 1px solid #173548;
-  border-bottom: 1px solid #173548;
-  scroll-margin-top: 50px;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid #437b92;
+  border-radius: 50%;
+  background: #0a2335;
+  color: #89e1f3;
+  transition: background-color 0.2s, border-color 0.2s;
+}
 
-  >p {
-    font-size: 11px;
-    color: #5f8aa5;
-    margin: 0;
-    line-height: 1.9;
+.hero-scroll-arrow {
+  display: grid;
+  place-items: center;
 
-    strong {
-      font-weight: 400;
-      color: #aec8da;
-    }
-  }
+  .app-icon { transform: rotate(90deg); }
+}
 
-  >div {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    color: #50a5c5;
+.hero-scroll.is-animated .hero-scroll-arrow {
+  animation: hero-scroll-down 1.6s ease-in-out 3;
+}
 
-    span {
-      font-size: 12px;
-      color: #aac7da;
-
-      small {
-        display: block;
-        font-size: 9px;
-        color: #5c819b;
-        margin-top: 4px;
-      }
-    }
-  }
+@keyframes hero-scroll-down {
+  0%, 100% { transform: translateY(0); }
+  56% { transform: translateY(5px); }
 }
 
 .product-closing {
@@ -742,6 +775,7 @@ export default {
 .is-reduced {
 
   .product-primary,
+  .hero-scroll-icon,
   .landing-links a,
   .product-login::after {
     transition: none;
@@ -750,9 +784,8 @@ export default {
 
 @media (min-width: 1500px) {
   .landing-hero {
-    padding-top: 105px;
-    padding-bottom: 125px;
-    min-height: 800px;
+    padding-top: clamp(40px, 11svh, 105px);
+    padding-bottom: clamp(65px, 13svh, 125px);
   }
 
   .hero-copy h1 {
@@ -762,9 +795,7 @@ export default {
 
 @media (max-width: 1100px) {
   .landing-hero {
-    min-height: 650px;
-    padding-top: 65px;
-    padding-bottom: 100px;
+    padding-top: clamp(30px, 7svh, 65px);
     grid-template-columns: 1fr 1.04fr;
   }
 
@@ -789,14 +820,22 @@ export default {
   .hero-description {
     font-size: 12px;
   }
+}
 
-  .product-principles {
-    padding: 28px 32px;
-    gap: 19px;
+@media (min-width: 768px) and (max-height: 850px) {
+  .landing-hero {
+    padding-top: clamp(28px, 6svh, 56px);
+    padding-bottom: clamp(65px, 9svh, 84px);
+  }
 
-    >div {
-      gap: 10px;
-    }
+  .hero-copy h1 {
+    font-size: clamp(37px, min(4.6vw, 7.9svh), 66px);
+    margin-bottom: 22px;
+  }
+
+  .hero-scene-shell:not(.intro-fixed) {
+    width: min(112%, max(320px, calc((100svh - 264px) * 4 / 3)));
+    margin-inline: auto;
   }
 }
 
@@ -843,7 +882,6 @@ export default {
     align-items: stretch;
     gap: 10px;
     padding: 40px 24px 70px;
-    min-height: 0;
   }
 
   .hero-copy h1 {
@@ -895,40 +933,9 @@ export default {
   }
 
   .hero-scroll {
-    left: 24px;
-    bottom: 15px;
-  }
-
-  .product-principles {
-    grid-template-columns: 1fr;
-    padding: 28px 24px;
-    gap: 25px;
-
-    >p {
-      font-size: 11px;
-      line-height: 1.9;
-
-      br {
-        display: none;
-      }
-
-      strong {
-        margin-left: 5px;
-      }
-    }
-
-    >div {
-      gap: 17px;
-
-      span {
-        font-size: 12px;
-
-        small {
-          font-size: 10px;
-          margin-top: 3px;
-        }
-      }
-    }
+    position: static;
+    align-self: center;
+    transform: none;
   }
 
   .product-closing {
@@ -984,10 +991,6 @@ export default {
   .product-explore {
     gap: 7px;
     font-size: 10px;
-  }
-
-  .hero-scroll {
-    left: 18px;
   }
 
   .hero-description {

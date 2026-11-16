@@ -121,6 +121,12 @@ const router = new Router({
           meta: { title: "复习计划" },
         },
         {
+          path: "review-coach",
+          name: "review-coach",
+          component: lazyPage(() => import("../views/ReviewCoach.vue")),
+          meta: { title: "AI 复习教练" },
+        },
+        {
           path: "settings",
           name: "settings",
           component: lazyPage(() => import("../views/Settings.vue")),

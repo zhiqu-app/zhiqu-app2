@@ -1,6 +1,5 @@
 import { request } from "./api";
-import { accountScope, assertScope } from "./courses";
-import { state } from "../store";
+import { accountScope, assertScope, mergeTask } from "./courses";
 
 async function list(path, params = {}) {
   const scope = accountScope();
@@ -19,7 +18,12 @@ async function list(path, params = {}) {
   throw new Error("数据过多，请缩小查询范围。");
 }
 
-export const loadQuestions = (courseId) => list("/questions", { courseId });
+export const loadQuestions = (courseId, knowledgeNodeId, taskId) =>
+  list("/questions", {
+    ...(courseId ? { courseId } : {}),
+    ...(knowledgeNodeId ? { knowledgeNodeId } : {}),
+    ...(taskId ? { taskId } : {}),
+  });
 export async function loadQuestion(id) {
   const scope = accountScope();
   const result = await request("/questions/" + encodeURIComponent(id));
@@ -35,6 +39,15 @@ export async function importQuestions(courseId, body) {
   assertScope(scope);
   return result;
 }
+export async function deleteQuestion(courseId, questionId) {
+  const scope = accountScope();
+  assertScope(scope);
+  await request(
+    `/courses/${encodeURIComponent(courseId)}/questions/${encodeURIComponent(questionId)}`,
+    { method: "DELETE" },
+  );
+  assertScope(scope);
+}
 export async function submitAnswer(body) {
   const scope = accountScope();
   const result = await request("/attempts", { method: "POST", body });
@@ -43,21 +56,24 @@ export async function submitAnswer(body) {
     throw new Error("判分结果不完整，请重试保存。");
   return result;
 }
-export const loadMistakes = (courseId, status = "all") =>
-  list("/mistakes", { ...(courseId ? { courseId } : {}), status });
-export async function planMistake(id) {
+export const loadMistakes = (courseId, status = "all", knowledgeNodeId) =>
+  list("/mistakes", {
+    ...(courseId ? { courseId } : {}),
+    ...(knowledgeNodeId ? { knowledgeNodeId } : {}),
+    status,
+  });
+async function scheduleMistake(id, action) {
   const scope = accountScope();
   const result = await request(
-    "/mistakes/" + encodeURIComponent(id) + "/plan",
+    "/mistakes/" + encodeURIComponent(id) + "/" + action,
     { method: "POST" },
   );
   assertScope(scope);
-  state.tasks = [
-    ...state.tasks.filter((task) => task.id !== result.task.id),
-    { ...result.task, _remote: true },
-  ];
+  mergeTask(result?.task);
   return result;
 }
+export const planMistake = (id) => scheduleMistake(id, "plan");
+export const retestMistake = (id) => scheduleMistake(id, "retest");
 export async function loadReport(range = "all", courseId) {
   const scope = accountScope();
   const result = await request(

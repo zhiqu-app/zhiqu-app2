@@ -9,7 +9,7 @@
         <button class="button secondary" @click="importCourse">
           <AppIcon name="upload" :size="18" />导入资料
         </button>
-        <button ref="createButton" class="button primary" @click="showCreate = true">
+        <button ref="createButton" data-guide-target="course" class="button primary" @click="showCreate = true">
           <AppIcon name="plus" />新建课程
         </button>
       </div>
@@ -109,6 +109,7 @@ import CourseCard from "../components/CourseCard.vue";
 import AppModal from "../components/AppModal.vue";
 import { state, persist, uid, notify } from "../store";
 import { loadCourses, createCourse, archiveCourse } from "../services/courses";
+import { recordGuideAction } from "../services/workspace-guide";
 import { deleteAccountCourse } from "../services/platform";
 export default {
   name: "Courses",
@@ -221,6 +222,7 @@ export default {
       this.busy = true;
       try {
         const course = await createCourse(this.form);
+        recordGuideAction("course", course.id);
         this.showCreate = false;
         notify("课程已创建，可以导入资料或配置知识星图。");
         await this.$router.push("/app/courses/" + course.id);

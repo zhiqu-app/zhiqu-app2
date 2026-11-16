@@ -4,7 +4,7 @@
     immersive: $route.name === 'practice',
     'workspace-stretch': $route.name === 'mistakes',
   }"
-    @keydown.esc="closeMenu">
+    :data-guide-step="guideState.activeStep" @keydown.esc="closeMenu">
     <div v-if="menuOpen" class="menu-shade" @click="menuOpen = false" />
     <div ref="sidebar" class="sidebar-container" :inert="narrow && !menuOpen ? '' : null" @keydown.tab="trapMenu">
       <button v-if="narrow && menuOpen" class="icon-button drawer-close" aria-label="关闭导航" @click="closeMenu">
@@ -30,7 +30,7 @@
         </form>
         <NotificationCenter />
         <router-link to="/app/settings" aria-label="打开个人设置">
-          <UserAvatar :name="state.settings.name" :size="34" />
+          <UserAvatar :src="state.settings.avatar" :name="state.settings.name" :size="34" />
         </router-link>
       </header>
       <div class="demo-banner">
@@ -54,21 +54,25 @@
         <span>{{ item.label }}</span>
       </router-link>
     </nav>
+    <WorkspaceGuide v-if="state.account" v-show="!menuOpen" :key="state.account.id" :account-id="state.account.id" />
   </div>
 </template>
 <script>
 import SideMenu from "../components/SideMenu.vue";
 import UserAvatar from "../components/UserAvatar.vue";
 import NotificationCenter from "../components/NotificationCenter.vue";
+import WorkspaceGuide from "../components/WorkspaceGuide.vue";
 import { state, notify } from "../store";
+import { guideState } from "../services/workspace-guide";
 import { navigation, revealPage } from "../utils/navigation";
 import { motionAllowed } from "../utils/motion";
 export default {
   name: "Workspace",
-  components: { SideMenu, UserAvatar, NotificationCenter },
+  components: { SideMenu, UserAvatar, NotificationCenter, WorkspaceGuide },
   data: () => ({
     state,
     navigation,
+    guideState,
     menuOpen: false,
     narrow: window.innerWidth < 1200,
     searchText: "",
@@ -107,6 +111,7 @@ export default {
       revealPage(element.dataset.routePath, "workspace");
     },
     closeMenu() {
+      if (!this.menuOpen) return;
       this.menuOpen = false;
       this.$nextTick(() => {
         if (this.$refs.menuButton) this.$refs.menuButton.focus();
@@ -461,3 +466,10 @@ export default {
   }
 }
 </style>
+.workspace[data-guide-step="course"] ::v-deep [data-guide-target="course"],
+.workspace[data-guide-step="material"] ::v-deep [data-guide-target="material"],
+.workspace[data-guide-step="answer"] ::v-deep [data-guide-target="answer"],
+.workspace[data-guide-step="source"] ::v-deep [data-guide-target="source"] {
+  outline: 2px solid #ffc162;
+  outline-offset: 3px;
+}

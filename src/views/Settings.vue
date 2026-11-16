@@ -23,8 +23,23 @@
         <p v-if="profileLoading" role="status">正在读取账号资料…</p>
         <form v-else @submit.prevent="save">
           <div class="profile-editor">
-            <UserAvatar :name="form.name" :size="76" />
-            <p class="small muted">知序默认头像</p>
+            <UserAvatar :src="avatarPreview" :name="form.name" :size="76" />
+            <div class="profile-avatar-controls">
+              <div class="profile-avatar-actions">
+                <input ref="avatarFile" type="file" accept="image/jpeg,image/png,image/webp"
+                  hidden :disabled="busy || avatarLoading" @change="selectAvatar" />
+                <button type="button" class="button secondary" aria-describedby="avatar-help"
+                  :disabled="busy || avatarLoading" @click="$refs.avatarFile.click()">
+                  <AppIcon name="upload" :size="16" />{{ avatarLoading ? "正在处理…" : "更换头像" }}
+                </button>
+                <button v-if="avatarPreview" type="button" class="text-button"
+                  :disabled="busy || avatarLoading" @click="resetAvatar">恢复默认</button>
+              </div>
+              <p id="avatar-help" class="small muted" aria-live="polite">{{
+                avatarDraft === null ? "支持 JPG、PNG、WebP，最大 5 MB。" : "已预览头像，点击「保存资料」生效。"
+              }}</p>
+              <p v-if="avatarError" class="error-message" role="alert">{{ avatarError }}</p>
+            </div>
           </div>
           <label class="field-label" for="user-name">昵称</label><input id="user-name" v-model.trim="form.name"
             class="input" required maxlength="30" :disabled="busy" /><label class="field-label"
@@ -36,7 +51,7 @@
             </option>
           </select><label class="field-label" for="user-email">联系邮箱（选填）</label><input id="user-email"
             v-model.trim="form.email" class="input" type="email" maxlength="100" :disabled="busy" /><button
-            class="button primary full-width settings-save" :disabled="busy || !form.name">
+            class="button primary full-width settings-save" :disabled="busy || avatarLoading || !form.name">
             保存资料
           </button>
         </form>
@@ -136,6 +151,7 @@ import AppModal from "../components/AppModal.vue";
 import { state, persist, notify, resetData } from "../store";
 import { logoutAccount } from "../services/auth";
 import { api } from "../services/api";
+import { accountScope, assertScope } from "../services/courses";
 import {
   getProfile,
   getHealth,
@@ -143,12 +159,44 @@ import {
   resetAccountData,
   downloadJson,
 } from "../services/platform";
+
+async function prepareAvatar(file) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
+    throw new Error("请选择 JPG、PNG 或 WebP 图片。");
+  if (file.size > 5 * 1024 * 1024) throw new Error("头像图片不能超过 5 MB。");
+
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode().catch(() => { throw new Error("图片无法读取，请换一张图片。"); });
+    const side = Math.min(image.naturalWidth, image.naturalHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 256;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#a8d8ff";
+    context.fillRect(0, 0, 256, 256);
+    context.drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2,
+      side, side, 0, 0, 256, 256);
+    for (const quality of [0.88, 0.72, 0.56, 0.4]) {
+      const avatar = canvas.toDataURL("image/jpeg", quality);
+      if (avatar.startsWith("data:image/jpeg;base64,") && avatar.length <= 48 * 1024) return avatar;
+    }
+    throw new Error("图片压缩后仍然过大，请换一张图片。");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export default {
   name: "Settings",
   components: { UserAvatar, AppModal },
   data: () => ({
     state,
     form: { ...state.settings },
+    avatarDraft: null,
+    avatarLoading: false,
+    avatarError: "",
     grades: ["大一", "大二", "大三", "大四", "研究生", "其他"],
     busy: false,
     profileLoading: false,
@@ -159,11 +207,34 @@ export default {
     confirmWord: "",
     resetError: "",
   }),
+  computed: {
+    avatarPreview() {
+      return this.avatarDraft ?? state.settings.avatar;
+    },
+  },
   created() {
     this.readProfile();
     this.checkHealth();
   },
   methods: {
+    async selectAvatar(event) {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || this.busy || this.avatarLoading) return;
+      this.avatarLoading = true;
+      this.avatarError = "";
+      try {
+        this.avatarDraft = await prepareAvatar(file);
+      } catch (error) {
+        this.avatarError = error.message;
+      } finally {
+        this.avatarLoading = false;
+      }
+    },
+    resetAvatar() {
+      this.avatarDraft = "";
+      this.avatarError = "";
+    },
     async readProfile() {
       if (state.mode !== "account") return;
       this.profileLoading = true;
@@ -192,16 +263,22 @@ export default {
       }
     },
     async save() {
-      if (this.busy || !this.form.name) return;
+      if (this.busy || this.avatarLoading || !this.form.name) return;
       this.busy = true;
+      const scope = accountScope();
       try {
-        const profile = await api.saveProfile(this.form);
+        const body = { ...this.form };
+        delete body.avatar;
+        if (this.avatarDraft !== null) body.avatar = this.avatarDraft;
+        const profile = await api.saveProfile(body);
+        assertScope(scope);
         Object.assign(state.settings, profile);
         if (state.account) state.account.profile = { ...profile };
+        this.avatarDraft = null;
         persist();
         notify("个人资料已保存");
       } catch (error) {
-        notify(error.message);
+        notify(error.details?.[0]?.message || error.message);
       } finally {
         this.busy = false;
       }
@@ -286,12 +363,24 @@ export default {
 }
 
 .profile-editor {
-  text-align: center;
-  margin: 22px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 22px 0 26px;
+}
 
+.profile-avatar-controls {
+  min-width: 0;
   >p {
-    margin: 10px 0 0;
+    margin: 8px 0 0;
   }
+}
+
+.profile-avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
 .settings-save {

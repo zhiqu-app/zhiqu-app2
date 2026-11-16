@@ -13,7 +13,7 @@
     </nav>
     <footer class="side-menu__bottom">
       <router-link to="/app/settings" class="profile-link" @click.native="$emit('navigate')">
-        <UserAvatar :name="user.name" :size="42" />
+        <UserAvatar :src="user.avatar" :name="user.name" :size="42" />
         <span>
           <strong>{{ user.name }}</strong>
           <small>{{ user.grade }} · {{ user.major }}</small>
@@ -41,7 +41,8 @@ export default {
       { key: 'knowledge', path: '/app/knowledge', label: '知识路线', icon: 'graph' },
       { key: 'practice', path: '/app/practice', label: '练习与错题', icon: 'edit' },
       { key: 'reports', path: '/app/reports', label: '学习报告', icon: 'chart' },
-      { key: 'plan', path: '/app/plan', label: '复习计划', icon: 'calendar' }
+      { key: 'plan', path: '/app/plan', label: '复习计划', icon: 'calendar' },
+      { key: 'review-coach', path: '/app/review-coach', label: 'AI 复习教练', icon: 'spark' }
     ]
   }),
   methods: {

@@ -442,7 +442,7 @@ export default {
       if (!this.form.courseId) return;
       this.questionsLoading = true;
       try {
-        const questions = await loadQuestions(this.form.courseId);
+        const questions = await loadQuestions(this.form.courseId, null, this.form.id);
         if (revision === this.questionsRevision) this.taskQuestions = questions;
       } catch (error) {
         if (revision === this.questionsRevision)

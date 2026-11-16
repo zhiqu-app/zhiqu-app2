@@ -58,7 +58,7 @@
             <h2>
               课程资料 <span class="muted">{{ materials.length }}</span>
             </h2>
-            <label class="button primary small-button upload-label">
+            <label class="button primary small-button upload-label" data-guide-target="material">
               <AppIcon name="upload" :size="18" />导入资料<input ref="upload" type="file" accept=".txt,.md,.pdf" multiple
                 :disabled="uploading" @change="upload" />
             </label>
@@ -148,6 +148,7 @@
 </template>
 <script>
 import { motionAllowed } from "../utils/motion";
+import { recordGuideAction } from "../services/workspace-guide";
 import AppModal from "../components/AppModal.vue";
 import CourseGraphQuickPanel from "../components/CourseGraphQuickPanel.vue";
 import { state, persist, uid, notify } from "../store";
@@ -231,7 +232,8 @@ export default {
           continue;
         }
         try {
-          await uploadMaterial(courseId, file);
+          const material = await uploadMaterial(courseId, file);
+          if (material.parseStatus === "ready") recordGuideAction("material", courseId);
           added++;
           if (isFirstUpload && added === 1) this.firstUploadCourse = courseId;
         } catch (error) {

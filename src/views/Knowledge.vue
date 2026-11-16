@@ -45,13 +45,13 @@
         <div class="knowledge-cards">
           <button v-for="n in nodes" :key="n.id" class="knowledge-card"
             :class="{ active: selected && selected.id === n.id }" @click="selectedId = n.id">
-            <AppIcon name="book" /><strong>{{ n.label }}</strong><span>查看学习内容</span>
+            <AppIcon name="book" /><strong>{{ n.label }}</strong><span>{{ reviewLabel(n) }}</span>
           </button>
         </div>
       </section>
       <aside class="right-rail">
         <section v-if="selected" class="panel">
-          <span class="badge amber">正在探索</span>
+          <span class="badge" :class="{ amber: selected.reviewStatus === 'needs_review' }">{{ reviewLabel(selected) }}</span>
           <h2 class="selected-node-title">{{ selected.label }}</h2>
           <p>
             {{
@@ -67,9 +67,12 @@
             <router-link :to="{ path: '/app/studio', query: { course: graph.courseId } }" class="button secondary">
               <AppIcon name="file" :size="18" />回看课程资料
             </router-link>
-            <router-link to="/app/practice" class="button primary">
+            <router-link :to="{ path: '/app/practice', query: { course: graph.courseId, node: selected.id } }" class="button primary">
               <AppIcon name="edit" :size="18" />开始巩固练习
             </router-link>
+            <router-link v-if="currentCourse && currentCourse._remote" :to="{
+              name: 'question-bank', params: { id: graph.courseId }, query: { node: selected.id },
+            }" class="text-button">为本知识点配置题目</router-link>
           </div>
         </section>
         <section class="panel">
@@ -94,6 +97,12 @@
 import GroupedKnowledgeGraph from "../components/GroupedKnowledgeGraph.vue";
 import { state } from "../store";
 import courseGraph from "../mixins/courseGraph";
+const reviewLabels = {
+  unpracticed: "未练习",
+  needs_review: "待复习",
+  retest_passed: "复测通过",
+  practiced: "已练习",
+};
 export default {
   name: "Knowledge",
   components: { GroupedKnowledgeGraph },
@@ -110,6 +119,11 @@ export default {
         (this.graph?.nodes || []).find((node) => node.id === this.selectedId) ||
         null
       );
+    },
+  },
+  methods: {
+    reviewLabel(node) {
+      return reviewLabels[node.reviewStatus] || reviewLabels.unpracticed;
     },
   },
 };
