@@ -115,7 +115,7 @@
               {{ "问答与引用保存在账号中，下次进入这门课程可继续查看。" }}
             </p>
             <button v-for="text in suggestions" :key="text" class="suggestion-button"
-              :disabled="busy || loading || !canAsk" @click="send(text)">
+              :disabled="busy || loading || !canAsk || !!imageAttachment" @click="send(text)">
               {{ text }}
               <AppIcon name="arrow" :size="16" />
             </button>
@@ -126,6 +126,7 @@
               <AppIcon name="book" :size="20" />
             </div>
             <div class="message-body">
+              <img v-if="message.image" class="message-image" :src="message.image" alt="本次提问的学习图片" />
               <p>{{ message.text }}</p>
               <button v-for="(source, i) in message.sources" :key="i" class="source-chip"
                 :data-guide-target="i === 0 && message === messages[messages.length - 1] ? 'source' : null" @click="locate(source)">
@@ -133,22 +134,42 @@
               </button>
             </div>
           </article>
-          <p v-if="busy" class="muted small">正在查阅课程资料…</p>
+          <p v-if="busy" class="muted small" role="status">
+            {{ pendingImage ? "正在识别图片并查找相关讲义…" : "正在查阅课程资料…" }}
+          </p>
         </div>
         <div class="chat-compose">
           <p class="small muted">
             <AppIcon name="info" :size="14" />
-            {{
-              "支持可解析的课程文字与 PDF；扫描图片暂无 OCR。"
-            }}
+            可上传或粘贴单张截图、题目图或讲义图片。支持 PNG、JPEG、WebP，最多 5 MB。
           </p>
+          <p v-if="imageError" class="image-error" role="alert">{{ imageError }}</p>
+          <div v-if="imageAttachment && !pendingImage" class="image-attachment">
+            <img :src="imageAttachment.url" alt="待发送图片预览" />
+            <div>
+              <strong :title="imageAttachment.file.name">{{ imageAttachment.file.name || "截图" }}</strong>
+              <span>图片用于本次分析 · 可直接发送</span>
+            </div>
+            <button class="text-button" type="button" aria-label="移除图片" @click="removeImage">
+              <AppIcon name="close" :size="17" />
+            </button>
+          </div>
           <form data-guide-target="answer" @submit.prevent="send(question)">
-            <textarea v-model="question" aria-label="向课程资料提问" placeholder="结合课程资料提问…" rows="2" maxlength="2000"
+            <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+              hidden @change="selectImage" />
+            <button class="attach-button" type="button" :disabled="busy || loading || !remoteCourse"
+              :class="{ 'has-image': imageAttachment }" :aria-label="imageAttachment ? '更换图片' : '添加图片'"
+              :title="imageAttachment ? '更换图片' : '添加图片'" @click="$refs.imageInput.click()">
+              <AppIcon name="image" :size="21" />
+            </button>
+            <textarea v-model="question" aria-label="向课程资料提问" rows="2" :maxlength="questionLimit"
+              :placeholder="imageAttachment ? '想问图片里的什么？（可选）' : '结合课程资料提问…'"
+              :readonly="!!pendingImage" @paste="pasteImage"
               @keydown.enter.exact.prevent="send(question)" />
-            <button v-if="busy" class="button secondary" type="button" @click="stop">
+            <button v-if="busy" class="button secondary" type="button" @click="stop()">
               停止
             </button>
-            <button v-else class="send-button" :disabled="!question.trim() || !canAsk || loading" aria-label="发送问题">
+            <button v-else class="send-button" :disabled="!canSend" aria-label="发送问题">
               <AppIcon name="send" />
             </button>
           </form>
@@ -171,8 +192,13 @@ import {
 } from "../services/courses";
 import {
   askAccountAssistant,
+  askAccountImage,
   loadAssistantHistory,
 } from "../services/platform";
+const IMAGE_QUESTION_PREFIX = "图片提问 · ";
+const IMAGE_LIMIT = 5 * 1024 * 1024;
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
 export default {
   name: "Studio",
   components: { UserAvatar },
@@ -182,6 +208,9 @@ export default {
     materialId: "",
     document: null,
     question: "",
+    imageAttachment: null,
+    pendingImage: null,
+    imageError: "",
     messages: [],
     busy: false,
     tab: "chat",
@@ -192,6 +221,7 @@ export default {
     docLoading: false,
     docError: "",
     historyError: "",
+    historyNeedsScroll: false,
     answerMode: "",
     generation: 0,
     loadRevision: 0,
@@ -215,6 +245,13 @@ export default {
         this.remoteCourse &&
         this.materials.some((m) => m._remote && m.parseStatus === "ready")
       );
+    },
+    canSend() {
+      return !this.loading && !this.busy && this.remoteCourse
+        && (this.imageAttachment || (this.canAsk && this.question.trim()));
+    },
+    questionLimit() {
+      return 2000 - (this.imageAttachment ? IMAGE_QUESTION_PREFIX.length : 0);
     },
     paragraphs() {
       return sourceParagraphs(this.document?.text, this.sourceRange);
@@ -248,12 +285,15 @@ export default {
     "$route.fullPath"() {
       this.load();
     },
+    tab(value) {
+      if (value === "chat" && this.historyNeedsScroll) this.scrollToLatest({ initial: true });
+    },
   },
   created() {
     this.load();
   },
   beforeDestroy() {
-    this.stop();
+    this.clearImages();
     ++this.loadRevision;
     ++this.docRevision;
   },
@@ -264,7 +304,7 @@ export default {
     async load() {
       const query = { ...this.$route.query };
       const targetMaterial = typeof query.material === "string" ? query.material : "";
-      this.stop();
+      this.clearImages();
       ++this.docRevision;
       this.activeSource = null;
       this.documentView = "original";
@@ -274,6 +314,7 @@ export default {
       this.loading = true;
       this.loadError = "";
       this.historyError = "";
+      this.historyNeedsScroll = false;
       this.messages = [];
       this.document = null;
       this.materialId = "";
@@ -318,6 +359,8 @@ export default {
           { id: row.id, role: "assistant", text: row.text, sources: row.sources },
         ]);
         this.answerMode = history.at(-1)?.mode || "";
+        this.historyNeedsScroll = this.messages.length > 0;
+        this.scrollToLatest({ initial: true });
       } catch (error) {
         if (revision === this.loadRevision && error.name !== "AbortError")
           this.historyError = error.message;
@@ -363,30 +406,89 @@ export default {
         this.focusSource();
       }
     },
+    selectImage(event) {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (file) this.setImage(file);
+    },
+    pasteImage(event) {
+      const file = [...(event.clipboardData?.files || [])].find((item) => item.type.startsWith("image/"));
+      if (file && this.remoteCourse && !this.busy && !this.loading) {
+        this.setImage(file);
+        if (!event.clipboardData.getData("text/plain")) event.preventDefault();
+      }
+    },
+    setImage(file) {
+      if (!IMAGE_TYPES.includes(file.type) && (file.type || !/\.(png|jpe?g|webp)$/i.test(file.name))) {
+        this.imageError = "请选择 PNG、JPEG 或 WebP 图片。";
+        return;
+      }
+      if (!file.size || file.size > IMAGE_LIMIT) {
+        this.imageError = file.size ? "图片超过 5 MB，请压缩后重试。" : "图片文件为空，请重新选择。";
+        return;
+      }
+      this.removeImage();
+      this.imageAttachment = { file, url: URL.createObjectURL(file), requestId: uid() };
+    },
+    removeImage() {
+      if (this.imageAttachment) URL.revokeObjectURL(this.imageAttachment.url);
+      this.imageAttachment = null;
+      this.imageError = "";
+    },
+    clearImages() {
+      this.stop();
+      if (this.imageAttachment) this.question = "";
+      this.removeImage();
+      this.messages.forEach((message) => {
+        if (message.image) URL.revokeObjectURL(message.image);
+      });
+    },
+    restoreImageMessage() {
+      if (!this.pendingImage) return;
+      const { id, text } = this.pendingImage;
+      this.messages = this.messages.filter((message) => message.id !== id);
+      this.question = text;
+      this.pendingImage = null;
+    },
     async send(text) {
-      if (!text.trim() || this.busy || this.loading) return;
-      if (!this.canAsk) {
+      const attachment = this.imageAttachment;
+      if ((!text.trim() && !attachment) || this.busy || this.loading || !this.remoteCourse) return;
+      if (!attachment && !this.canAsk) {
         notify("请先导入可解析的课程资料。");
         return;
       }
       const question = text.trim();
+      if (attachment && question.length > this.questionLimit) {
+        this.imageError = "附图问题最多可输入 " + this.questionLimit + " 个字符。";
+        return;
+      }
       this.question = "";
       this.tab = "chat";
+      this.imageError = "";
+      const messageId = uid();
       this.messages.push({
-        id: uid(),
+        id: messageId,
         role: "user",
-        text: question,
+        text: attachment ? (question ? IMAGE_QUESTION_PREFIX + question : "图片提问") : question,
+        image: attachment?.url,
         sources: [],
       });
+      if (attachment) this.pendingImage = { id: messageId, text };
       this.busy = true;
+      this.scrollToLatest();
       const generation = ++this.generation;
       this.controller = new AbortController();
       try {
-        const answer = await askAccountAssistant(
-          { courseId: this.courseId, question },
-          this.controller.signal,
-        );
+        const answer = attachment
+          ? await askAccountImage(this.courseId, question, attachment.file, attachment.requestId, this.controller.signal)
+          : await askAccountAssistant({ courseId: this.courseId, question }, this.controller.signal);
         if (generation !== this.generation) return;
+        if (attachment) {
+          const message = this.messages.find((item) => item.id === messageId);
+          if (message && answer.question) message.text = answer.question;
+          this.pendingImage = null;
+          this.imageAttachment = null;
+        }
         this.answerMode = answer.mode || "";
         this.messages.push({
           id: answer.id || uid(),
@@ -395,9 +497,13 @@ export default {
           sources: answer.sources || [],
         });
         if (answer.sources?.length) recordGuideAction("answer", this.courseId);
-        this.scroll();
+        this.scrollToLatest();
       } catch (error) {
-        if (error.name !== "AbortError")
+        if (generation !== this.generation) return;
+        if (attachment) {
+          this.restoreImageMessage();
+          if (error.name !== "AbortError") this.imageError = error.message || "图片答疑失败，请重试。";
+        } else if (error.name !== "AbortError")
           notify(error.message || "答疑失败，请重试。");
       } finally {
         if (generation === this.generation) this.busy = false;
@@ -406,12 +512,18 @@ export default {
     stop() {
       ++this.generation;
       if (this.controller) this.controller.abort();
+      this.controller = null;
+      this.restoreImageMessage();
       this.busy = false;
     },
-    scroll() {
+    scrollToLatest({ initial = false } = {}) {
+      const revision = this.loadRevision;
       this.$nextTick(() => {
-        if (this.$refs.messages)
-          this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight;
+        const messages = this.$refs.messages;
+        // 手机从原文链接进入时，聊天区要等切回答疑后才能测量。
+        if (revision !== this.loadRevision || !messages?.clientHeight || (initial && !this.historyNeedsScroll)) return;
+        messages.scrollTo({ top: messages.scrollHeight, behavior: initial || !motionAllowed() ? "instant" : "smooth" });
+        this.historyNeedsScroll = false;
       });
     },
     async locate(source) {
@@ -684,7 +796,6 @@ export default {
   min-height: 0;
   overflow-y: auto;
   padding: 20px 17px;
-  scroll-behavior: smooth;
 }
 
 .chat-intro {
@@ -797,6 +908,7 @@ export default {
     border-radius: 7px;
     resize: none;
     flex: 1;
+    min-width: 0;
     min-height: 52px;
     max-height: 140px;
     font-size: 13px;
@@ -804,6 +916,75 @@ export default {
     &:focus-visible {
       outline-offset: 0px;
     }
+  }
+}
+
+.chat-compose .image-error {
+  color: #ffb2ad;
+}
+
+.image-attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  border: 1px solid @border;
+  border-radius: 8px;
+  background: #061c2d;
+
+  img {
+    width: 44px;
+    height: 38px;
+    border-radius: 4px;
+    object-fit: contain;
+    background: #112d40;
+  }
+
+  div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  span {
+    color: #9ab8cc;
+    font-size: 10px;
+  }
+}
+
+.message-image {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  border: 1px solid @border;
+  border-radius: 6px;
+  margin: 2px 0 6px;
+  object-fit: contain;
+}
+
+.attach-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 42px;
+  flex: none;
+  border: 1px solid @border;
+  border-radius: 8px;
+  color: #9acde1;
+  transition: color 160ms ease, border-color 160ms ease;
+
+  &:hover:not(:disabled), &.has-image {
+    color: #7de8ff;
+    border-color: #47a6c2;
   }
 }
 
@@ -816,6 +997,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
 }
 
 @media (max-width: 900px) and (min-width: 768px) {

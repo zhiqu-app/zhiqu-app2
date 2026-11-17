@@ -1,5 +1,5 @@
 <template>
-  <section class="product-intro" role="dialog" aria-modal="true" aria-labelledby="intro-heading"
+  <section class="product-intro" :class="{ 'intro-motion': !reduced }" role="dialog" aria-modal="true" aria-labelledby="intro-heading"
     @keydown.esc.prevent="$emit('enter', true)" @keydown.tab="trap">
     <header class="intro-header">
       <BrandLogo /><button class="intro-skip" @click="$emit('enter', true)">
@@ -9,7 +9,10 @@
     </header>
     <div class="intro-copy">
       <p class="intro-overline"><i />让每一份知识，找到它的位置</p>
-      <h1 id="intro-heading">你的下一次理解，<br />从这一页开始。</h1>
+      <h1 id="intro-heading">
+        <span class="intro-line">你的下一次理解，</span>
+        <span class="intro-line">从这一页开始。</span>
+      </h1>
       <p class="intro-description">把零散的知识，连接成自己的学习路径。</p>
     </div>
     <div class="intro-bottom">
@@ -187,6 +190,40 @@ export default {
     letter-spacing: -1px;
     margin: 0 0 15px;
   }
+}
+
+.intro-line {
+  display: block;
+}
+
+.intro-motion {
+  .intro-line {
+    animation: intro-line-in .84s cubic-bezier(.22, 1, .36, 1) both;
+    &:first-child { animation-delay: .1s; }
+    &:last-child { animation-delay: .33s; }
+  }
+
+  .intro-overline,
+  .intro-description,
+  .intro-header .brand,
+  .intro-bottom,
+  .intro-footer {
+    animation: intro-support-in .58s ease-out 1.34s both;
+  }
+
+  .intro-bottom,
+  .intro-footer { animation-delay: 1.62s; }
+  .intro-bottom:focus-within { animation-duration: .36s; }
+}
+
+@keyframes intro-line-in {
+  from { clip-path: inset(0 0 100% 0); opacity: 0; transform: translateY(.28em); }
+  to { clip-path: inset(0); opacity: 1; transform: translateY(0); }
+}
+
+@keyframes intro-support-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .intro-overline {

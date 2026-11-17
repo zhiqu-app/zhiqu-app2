@@ -83,10 +83,11 @@
         <button aria-label="返回顶部" @click="scrollTo('top')">↑</button>
       </div>
     </PublicFooter>
-    <transition name="intro-veil" :css="allowMotion">
+    <transition name="intro-wipe" :css="allowMotion && !skipIntroMotion">
       <div v-if="introOpen" class="intro-backdrop" aria-hidden="true" />
     </transition>
-    <transition name="intro-veil" :css="allowMotion">
+    <div v-if="introOpen && allowMotion" class="intro-first-mask" aria-hidden="true" />
+    <transition name="intro-veil" :css="allowMotion && !skipIntroMotion">
       <ProductIntro ref="intro" v-if="introOpen" @enter="enter" @motion="toggleMotion" @retry="retryArt" />
     </transition>
   </main>
@@ -136,6 +137,7 @@ export default {
       state,
       introOpen: intro,
       opening: false,
+      skipIntroMotion: false,
       sceneReady: !intro,
       busy: false,
       error: "",
@@ -241,6 +243,7 @@ export default {
       this.destroySmoothScroll();
       cancelAnimationFrame(this._unlockFrame);
       this._entryContext?.revert();
+      this.skipIntroMotion = false;
       this.opening = false;
       this.introOpen = true;
       this.sceneReady = false;
@@ -259,9 +262,14 @@ export default {
       this._locked = false;
     },
     async enter(skip = false) {
-      if (!this.introOpen || this.opening) return;
+      if (!this.introOpen || this.opening || this._entering) return;
+      this._entering = true;
       const before = this.$refs.scene.getBoundingClientRect(),
         animate = this.allowMotion && !skip;
+      this.skipIntroMotion = !!skip;
+      // 跳过时先更新 Transition 的配置，再移除开场，避免沿用上一帧的离场动画。
+      if (skip) await this.$nextTick();
+      if (this._isDestroyed) return;
       this.introOpen = false;
       this.opening = animate;
       this.sceneReady = !animate;
@@ -277,6 +285,7 @@ export default {
       const scene = this.$refs.scene,
         after = scene.getBoundingClientRect();
       const done = () => {
+        this._entering = false;
         this.opening = false;
         this.sceneReady = true;
         // 等当前手势的默认滚动处理结束再释放滚动锁，保持进入后的首屏位置。
@@ -308,7 +317,7 @@ export default {
             y: 0,
             scaleX: 1,
             scaleY: 1,
-            duration: 1.05,
+            duration: 1.38,
             ease: "power3.inOut",
             clearProps: "transform,transformOrigin",
           },
@@ -320,19 +329,19 @@ export default {
           {
             y: 0,
             opacity: 1,
-            duration: 0.6,
+            duration: 0.78,
             stagger: 0.06,
             ease: "power2.out",
             clearProps: "transform,opacity",
           },
-          0.25,
+          0.34,
         );
         this._entry.call(
           () => {
             this.sceneReady = true;
           },
           [],
-          0.7,
+          0.94,
         );
       }, this.$el);
     },
@@ -754,7 +763,7 @@ export default {
 }
 
 .intro-veil-leave-active {
-  transition: opacity 0.65s;
+  transition: opacity 0.85s;
   pointer-events: none;
 }
 
@@ -766,6 +775,32 @@ export default {
       #0b304b 0,
       #061b2c 42%,
       #041524 75%);
+  clip-path: inset(0);
+}
+
+.intro-first-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 76;
+  background: #020408;
+  pointer-events: none;
+  // 先给标题留出独立的黑底，再沿斜边揭开开场原有画面。
+  animation: reveal-intro-art 1.44s cubic-bezier(.5, .06, .22, 1) .98s both;
+}
+
+@keyframes reveal-intro-art {
+  0% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  42% { clip-path: polygon(0 48%, 100% 34%, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%); }
+}
+
+.intro-wipe-leave-active {
+  transition: clip-path 1.12s cubic-bezier(.5, .06, .22, 1);
+  pointer-events: none;
+}
+
+.intro-wipe-leave-to {
+  clip-path: inset(100% 0 0 0);
 }
 
 .intro-veil-leave-to {

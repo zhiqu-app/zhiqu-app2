@@ -43,7 +43,7 @@ function appError(data, status, headers) {
 }
 export async function request(
   path,
-  { method = "GET", body, signal, responseType } = {},
+  { method = "GET", body, signal, responseType, timeout = TIMEOUT } = {},
 ) {
   try {
     const response = await http.request({
@@ -52,6 +52,7 @@ export async function request(
       data: body,
       signal,
       responseType,
+      timeout,
     });
     if (response.status < 200 || response.status >= 300) {
       if (response.status === 401) {

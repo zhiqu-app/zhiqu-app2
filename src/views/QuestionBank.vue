@@ -83,17 +83,18 @@
             <p v-if="draftGenerating" class="muted small" role="status">正在查找课程资料并生成题目。</p>
           </form>
           <p v-if="draftError" class="error-message" role="alert">{{ draftError }}</p>
-          <p v-if="draftResult" class="bank-result" role="status">
-            已入库 {{ draftResult.imported }} 题，跳过重复 {{ draftResult.skipped }} 题，当前共 {{ draftResult.total }} 题。
-          </p>
-          <section v-if="drafts.length" ref="draftReview" class="paste-preview draft-review" tabindex="-1"
+          <transition name="draft-panel" :css="allowMotion">
+          <section v-if="drafts.length || draftResult" ref="draftReview" class="paste-preview draft-review" tabindex="-1"
             aria-label="审核练习草稿">
-            <h3>审核 {{ drafts.length }} 道草稿</h3>
-            <p class="muted small">核对答案和资料原文，勾选要入库的题目。</p>
-            <ol>
-              <li v-for="(q, i) in drafts" :key="i">
+            <h3 v-if="drafts.length">审核 {{ drafts.length }} 道草稿</h3>
+            <p v-if="drafts.length" class="muted small">核对答案和资料原文，勾选要入库的题目。</p>
+            <p v-if="draftResult" class="bank-result" role="status">
+              已入库 {{ draftResult.imported }} 题，跳过重复 {{ draftResult.skipped }} 题，当前共 {{ draftResult.total }} 题。
+            </p>
+            <transition-group name="draft-item" tag="ol" class="draft-list" :class="{ animated: allowMotion }" :css="allowMotion">
+              <li v-for="q in drafts" :key="q.title" class="draft-card" :class="{ 'draft-selected': approvedDrafts.includes(q.title) }">
                 <label class="draft-approval">
-                  <input v-model="approvedDrafts" type="checkbox" :value="i" :disabled="busy || draftGenerating" />
+                  <input v-model="approvedDrafts" type="checkbox" :value="q.title" :disabled="busy || draftGenerating" />
                   <strong>{{ q.title }}</strong>
                 </label>
                 <p class="muted small">知识点 {{ q.point }} · 正确选项 {{ letters[q.answer] }}</p>
@@ -112,10 +113,11 @@
                   <blockquote>{{ q.sourceEvidence.excerpt }}</blockquote>
                 </figure>
               </li>
-            </ol>
-            <button class="button primary" type="button" :disabled="busy || draftGenerating || !approvedDrafts.length"
+            </transition-group>
+            <button v-if="drafts.length" class="button primary" type="button" :disabled="busy || draftGenerating || !approvedDrafts.length"
               @click="importDrafts">确认入库<span v-if="approvedDrafts.length">（{{ approvedDrafts.length }} 题）</span></button>
           </section>
+          </transition>
         </article>
         <article class="panel bank-import">
           <h2>从 JSON 导入题库</h2>
@@ -386,6 +388,7 @@ import { loadCourseGraph } from "../services/course-knowledge";
 import { loadQuestions, importQuestions, deleteQuestion } from "../services/questions";
 import { associateQuestionNode, generatePracticeDrafts } from "../services/question-authoring";
 import { takeCoachDraft } from "../services/review-coach";
+import { motionAllowed } from "../utils/motion";
 import AppModal from "../components/AppModal.vue";
 import { createSingleQuestion } from "../services/platform";
 import {
@@ -442,6 +445,9 @@ export default {
     approvedDrafts: [],
   }),
   computed: {
+    allowMotion() {
+      return motionAllowed();
+    },
     jsonExample() {
       return JSON.stringify(questionTemplate, null, 2);
     },
@@ -667,13 +673,13 @@ export default {
     async importDrafts() {
       if (this.busy || this.draftGenerating || !this.approvedDrafts.length) return;
       const approved = new Set(this.approvedDrafts);
-      const questions = this.drafts.filter((_, index) => approved.has(index));
+      const questions = this.drafts.filter((question) => approved.has(question.title));
       this.busy = true;
       this.draftError = "";
       this.draftResult = null;
       try {
         this.draftResult = await importQuestions(this.course.id, { questions, deduplicateSimilar: true });
-        this.drafts = this.drafts.filter((_, index) => !approved.has(index));
+        this.drafts = this.drafts.filter((question) => !approved.has(question.title));
         this.approvedDrafts = [];
         await this.refresh();
         notify(this.draftResult.imported ? "已审核的草稿已入库" : "题目已存在，本次没有新增");
@@ -1119,6 +1125,19 @@ export default {
 .draft-review .button {
   margin-top: 12px;
 }
+.draft-panel-enter-active, .draft-panel-leave-active { transition: opacity .24s ease, transform .24s ease; }
+.draft-panel-enter, .draft-panel-leave-to { opacity: 0; transform: translateY(6px); }
+.draft-list > .draft-card {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding-inline: 12px;
+  &.draft-selected { border-color: #359bbd; background-color: #13354b; }
+}
+.draft-list.animated > .draft-card { transition: background-color .18s ease, border-color .18s ease; }
+.draft-list.animated > .draft-item-enter-active, .draft-list.animated > .draft-item-leave-active {
+  transition: opacity .18s ease, transform .18s ease;
+}
+.draft-item-enter, .draft-item-leave-to { opacity: 0; transform: translateY(-4px) scale(.99); pointer-events: none; }
 
 .bank-preview .button {
   margin-top: 20px;

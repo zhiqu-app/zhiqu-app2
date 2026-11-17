@@ -28,7 +28,11 @@
     </div>
     <div class="content-with-aside">
       <section>
-        <article v-for="task in filtered" :key="task.id" class="panel plan-task" :class="{ completed: task.done }">
+        <article v-for="task in filtered" :key="task.id" class="panel plan-task" :class="{
+          completed: task.done,
+          'completion-arrived': allowMotion && task.done && completionHolds[task.id],
+          'completion-depart': allowMotion && task.done && completionHolds[task.id] && filter === 'pending',
+        }">
           <div v-if="task.kind === 'exercise'" class="exercise-mark" :title="task.done ? '计划已完成' : '提交全部选定题目后完成'">
             <AppIcon :name="task.done ? 'check' : 'file'" :size="21" />
           </div>
@@ -39,6 +43,11 @@
             <span v-if="state.mode === 'account' && !task._remote" class="badge amber">本机任务 · 编辑保存后可关联星图</span>
             <h2>{{ task.title }}</h2>
             <p>{{ task.description }}</p>
+            <div v-if="task.kind === 'exercise' ? task.questionIds?.length : task.subtasks?.length"
+              class="task-progress" :class="{ animated: allowMotion }" role="progressbar"
+              :aria-label="task.title + '进度'" :aria-valuenow="Math.round(progressRatio(task) * 100)">
+              <span :style="{ transform: 'scaleX(' + progressRatio(task) + ')' }" />
+            </div>
             <p v-if="task.kind === 'exercise'" class="exercise-progress">
               习题计划 · 已提交 {{ (task.completedQuestionIds || []).length }} / {{ (task.questionIds || []).length }} 题
             </p>
@@ -46,7 +55,7 @@
               <p class="subtask-progress">
                 已完成 {{ completedSubtasks(task) }} / {{ (task.subtasks || []).length }} 项
               </p>
-              <ul :aria-label="task.title + '的小任务'">
+              <ul :class="{ animated: allowMotion }" :aria-label="task.title + '的小任务'">
                 <li v-for="subtask in task.subtasks" :key="subtask.id">
                   <label :class="{ checked: subtask.done }">
                     <input type="checkbox" :checked="subtask.done" :disabled="isTaskLocked(task)"
@@ -249,6 +258,7 @@ import {
   toggleSubtask as toggleRemoteSubtask,
 } from "../services/courses";
 import { loadQuestions } from "../services/questions";
+import { motionAllowed } from "../utils/motion";
 export default {
   name: "Plan",
   components: { AppModal },
@@ -260,6 +270,7 @@ export default {
     saveError: "",
     subtaskPending: {},
     subtaskErrors: {},
+    completionHolds: {},
     form: {},
     taskQuestions: [],
     questionsLoading: false,
@@ -273,6 +284,9 @@ export default {
     ],
   }),
   computed: {
+    allowMotion() {
+      return motionAllowed();
+    },
     // 筛选由路由保存，消息跳转、同页切换及刷新使用同一份状态。
     filter: {
       get() {
@@ -328,9 +342,12 @@ export default {
           (this.filter === "all" ||
             (this.filter === "today" && t.date === today) ||
             (this.filter === "done" && t.done) ||
-            (this.filter === "pending" && !t.done)),
+            (this.filter === "pending" && (!t.done || (this.allowMotion && this.completionHolds[t.id])))),
       );
     },
+  },
+  beforeDestroy() {
+    Object.values(this.completionTimers || {}).forEach((timer) => clearTimeout(timer));
   },
   methods: {
     setFilterQuery(values) {
@@ -350,6 +367,17 @@ export default {
     completedSubtasks(task) {
       return (task.subtasks || []).filter((item) => item.done).length;
     },
+    progressRatio(task) {
+      const total = task.kind === "exercise" ? task.questionIds?.length : task.subtasks?.length;
+      if (!total) return 0;
+      const complete = task.kind === "exercise" ? task.completedQuestionIds?.length || 0 : this.completedSubtasks(task);
+      return Math.min(1, complete / total);
+    },
+    clearCompletion(taskId) {
+      clearTimeout(this.completionTimers?.[taskId]);
+      if (this.completionTimers) delete this.completionTimers[taskId];
+      this.$delete(this.completionHolds, taskId);
+    },
     async toggleSubtask(task, subtask, event) {
       const done = event.target.checked;
       // Native input changes before Vue renders; keep it at the last saved value
@@ -365,11 +393,20 @@ export default {
     },
     async setSubtask(task, subtaskId, done) {
       if (task.kind === "exercise" || this.isTaskLocked(task)) return;
+      this.clearCompletion(task.id);
+      const canFinish = this.allowMotion && done && !task.done &&
+        task.subtasks.every((item) => item.id === subtaskId || item.done);
+      if (canFinish) this.$set(this.completionHolds, task.id, true);
       this.$set(this.subtaskPending, task.id, true);
       this.$delete(this.subtaskErrors, task.id);
       try {
-        await toggleRemoteSubtask(task.id, subtaskId, done);
+        const saved = await toggleRemoteSubtask(task.id, subtaskId, done);
+        if (!this._isDestroyed && canFinish && saved.done) {
+          if (!this.completionTimers) this.completionTimers = Object.create(null);
+          this.completionTimers[task.id] = setTimeout(() => this.clearCompletion(task.id), 650);
+        } else this.clearCompletion(task.id);
       } catch (error) {
+        this.clearCompletion(task.id);
         this.$set(this.subtaskErrors, task.id, {
           message: error.message,
           subtaskId,
@@ -580,6 +617,34 @@ export default {
   color: @cyan;
   padding-top: 3px;
 }
+.task-progress {
+  width: min(100%, 240px);
+  height: 3px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #1a3c51;
+  > span {
+    display: block;
+    height: 100%;
+    background: @cyan;
+    transform-origin: left center;
+  }
+  &.animated > span { transition: transform .24s ease-out; }
+}
+.plan-task.completion-arrived {
+  animation: plan-completed .48s ease-out both;
+}
+.plan-task.completion-depart {
+  animation: plan-completed .48s ease-out both, plan-completed-out .17s ease-in .48s both;
+}
+.plan-task.completion-arrived .plan-task-content { opacity: 1; }
+@keyframes plan-completed {
+  from { border-color: #60dfc5; background-color: #154344; }
+  to { border-color: @border; background-color: @surface; }
+}
+@keyframes plan-completed-out {
+  to { opacity: 0; transform: translateY(-4px); }
+}
 
 .task-question-picker {
   margin: 16px 0;
@@ -656,12 +721,34 @@ export default {
   }
 
   input {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    position: relative;
     width: 18px;
     height: 18px;
     margin: 2px 0 0;
     flex-shrink: 0;
-    accent-color: @cyan;
+    border: 1px solid #4f748d;
+    border-radius: 4px;
+    background-color: @surface;
+    &::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 3px;
+      width: 8px;
+      height: 5px;
+      border-left: 2px solid @cyan;
+      border-bottom: 2px solid @cyan;
+      transform: rotate(-45deg);
+      clip-path: inset(0 100% 0 0);
+    }
+    &:checked { border-color: #50988f; }
+    &:checked::after { clip-path: inset(0); }
+    &:focus-visible { outline: 2px solid @cyan; outline-offset: 3px; }
   }
+  .animated input::after { transition: clip-path .18s ease-out; }
 
   input:disabled {
     cursor: wait;

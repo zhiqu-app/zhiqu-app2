@@ -4,7 +4,7 @@ import { request } from "./api";
 import { accountScope, assertScope } from "./courses";
 
 export const guideEvents = new Vue();
-export const guideState = Vue.observable({ activeStep: "" });
+export const guideState = Vue.observable({ activeStep: "", targetRequest: 0 });
 
 export function recordGuideAction(step, courseId) {
   if (state.account?.id && courseId) {

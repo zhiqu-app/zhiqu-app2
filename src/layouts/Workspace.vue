@@ -55,6 +55,8 @@
       </router-link>
     </nav>
     <WorkspaceGuide v-if="state.account" v-show="!menuOpen" :key="state.account.id" :account-id="state.account.id" />
+    <GuideTargetHint v-if="state.account" :step="guideState.activeStep" :request="guideState.targetRequest"
+      :blocked="menuOpen || navigation.pending || navigation.overlayVisible || navigation.overlayLeaving" />
   </div>
 </template>
 <script>
@@ -62,13 +64,14 @@ import SideMenu from "../components/SideMenu.vue";
 import UserAvatar from "../components/UserAvatar.vue";
 import NotificationCenter from "../components/NotificationCenter.vue";
 import WorkspaceGuide from "../components/WorkspaceGuide.vue";
+import GuideTargetHint from "../components/GuideTargetHint.vue";
 import { state, notify } from "../store";
 import { guideState } from "../services/workspace-guide";
 import { navigation, revealPage } from "../utils/navigation";
 import { motionAllowed } from "../utils/motion";
 export default {
   name: "Workspace",
-  components: { SideMenu, UserAvatar, NotificationCenter, WorkspaceGuide },
+  components: { SideMenu, UserAvatar, NotificationCenter, WorkspaceGuide, GuideTargetHint },
   data: () => ({
     state,
     navigation,

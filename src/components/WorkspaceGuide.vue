@@ -330,7 +330,7 @@ export default {
       this.tab = "tour";
       this.goStep();
     },
-    goStep() {
+    async goStep() {
       if (!this.step) return;
       if (this.progress.step && this.state.coursesLoaded && !this.knownCourse(this.progress.courseId)) {
         this.restart();
@@ -339,7 +339,8 @@ export default {
       }
       this.progress.active = true;
       this.save();
-      this.openAction(this.step.target, this.progress.courseId);
+      await this.openAction(this.step.target, this.progress.courseId);
+      guideState.targetRequest++;
     },
     pause() {
       this.progress.active = false;

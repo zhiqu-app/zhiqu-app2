@@ -34,6 +34,14 @@ export const loadAttemptPage = (courseId, offset = 0) =>
   );
 export const askAccountAssistant = (body, signal) =>
   accountRequest("/assistant/ask", { method: "POST", body, signal });
+export function askAccountImage(courseId, question, file, requestId, signal) {
+  const body = new FormData();
+  body.append("courseId", courseId);
+  body.append("image", file);
+  body.append("requestId", requestId);
+  if (question) body.append("question", question);
+  return accountRequest("/assistant/ask-image", { method: "POST", body, signal, timeout: 65000 });
+}
 export async function loadAssistantHistory(courseId) {
   const rows = [];
   let offset = 0;

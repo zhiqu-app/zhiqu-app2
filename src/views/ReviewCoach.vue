@@ -33,21 +33,27 @@
         </button>
         <router-link v-if="!waiting && !courses.length && !courseError" :to="{ name: 'courses' }" class="text-button">前往新建课程</router-link>
       </form>
-      <section class="panel coach-result" aria-labelledby="coach-result-title" :aria-busy="String(busy)">
+      <section class="panel coach-result" :class="{ animated: allowMotion }" aria-labelledby="coach-result-title" :aria-busy="String(busy)">
         <h2 id="coach-result-title">本轮复习</h2>
         <p v-if="error" class="error-message" role="alert">{{ error }}</p>
-        <p v-if="busy" role="status">正在分析近期作答，并查找讲义和练习。</p>
+        <div v-if="busy" class="coach-wait">
+          <p role="status">正在分析近期作答，并查找讲义和练习。</p>
+          <div class="coach-skeleton" aria-hidden="true">
+            <div><span /><span /></div>
+            <div><span /><span /><span /></div>
+          </div>
+        </div>
         <p v-else-if="!result && !error" class="muted">选好课程和时间后，这里会显示推荐复习的知识点。</p>
         <template v-if="result">
-          <div v-if="result.focus" class="coach-focus">
+          <div v-if="result.focus" class="coach-focus coach-reveal">
             <div>
               <h3>{{ result.focus.label }}</h3>
               <p>近 14 天做过 {{ result.focus.total }} 道题，其中 {{ result.focus.wrong }} 道最近一次仍答错。</p>
             </div>
             <span>{{ result.minutes }} 分钟</span>
           </div>
-          <p v-if="statusText" role="status">{{ statusText }}</p>
-          <section v-if="result.evidence.length" class="coach-evidence">
+          <p v-if="statusText" class="coach-reveal" role="status">{{ statusText }}</p>
+          <section v-if="result.evidence.length" class="coach-evidence coach-reveal">
             <h3>先回看讲义</h3>
             <blockquote v-for="source in result.evidence" :key="source.materialId + ':' + source.start">
               <p>{{ source.excerpt }}</p>
@@ -57,7 +63,7 @@
               </router-link>
             </blockquote>
           </section>
-          <section v-if="result.questions.length" class="coach-questions">
+          <section v-if="result.questions.length" class="coach-questions coach-reveal">
             <h3>再做同知识点练习</h3>
             <fieldset :disabled="saving || !!savedTask">
               <legend class="sr-only">选择要加入复习计划的题目</legend>
@@ -67,12 +73,12 @@
               </label>
             </fieldset>
           </section>
-          <div class="coach-actions">
-            <template v-if="savedTask">
-              <p role="status">已保存到今日复习计划。</p>
-              <router-link class="button primary" :to="{ name: 'practice', query: { task: savedTask.id, course: result.courseId } }">开始复习</router-link>
+          <div class="coach-actions coach-reveal">
+            <div v-if="savedTask" class="coach-saved">
+              <router-link ref="startReview" class="button primary" :to="{ name: 'practice', query: { task: savedTask.id, course: result.courseId } }">开始复习</router-link>
               <router-link class="text-button" :to="{ name: 'plan' }">查看计划</router-link>
-            </template>
+              <p role="status">已保存到今日复习计划。</p>
+            </div>
             <button v-else-if="result.status === 'ready'" class="button primary" type="button" :disabled="saving || !selected.length" @click="confirm">
               {{ saving ? "正在保存…" : "确认加入复习计划（" + selected.length + " 题）" }}
             </button>
@@ -93,6 +99,7 @@
 import { state, notify } from "../store";
 import { loadCourses } from "../services/courses";
 import { runReviewCoach, saveCoachPlan, queueCoachDraft } from "../services/review-coach";
+import { motionAllowed } from "../utils/motion";
 
 const STATUSES = {
   no_evidence: "这个知识点暂时没有未做过的题，也没有检索到能支持出题的讲义。可以补充讲义后再生成。",
@@ -110,6 +117,9 @@ export default {
     result: null, selected: [], savedTask: null,
   }),
   computed: {
+    allowMotion() {
+      return motionAllowed();
+    },
     courses() {
       return this.state.courses.filter((course) => course._remote && !course.archived);
     },
@@ -180,6 +190,7 @@ export default {
         this.savedTask = await saveCoachPlan({ courseId: this.result.courseId, knowledgeNodeId: this.result.focus.id,
           minutes: this.result.minutes, questionIds: [...this.selected] });
         notify("复习计划已保存");
+        this.$nextTick(() => this.$refs.startReview?.$el.focus({ preventScroll: true }));
       } catch (error) {
         this.error = error.message;
       } finally {
@@ -215,6 +226,22 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .coach-form .button { justify-self: start; }
 .coach-result p { color: @muted; line-height: 1.6; overflow-wrap: anywhere; }
 .coach-result .error-message { color: #ffb2ba; }
+.coach-skeleton {
+  display: grid;
+  gap: 10px;
+  > div { padding: 10px 14px; background: @surface-raised; border-radius: 8px; }
+  span { display: block; width: 75%; height: 8px; margin: 8px 0; background: #24475d; border-radius: 5px; }
+  span:first-child { width: 35%; height: 11px; }
+  span:nth-child(3) { width: 58%; }
+}
+.animated .coach-skeleton span { animation: coach-waiting 1.4s ease-in-out alternate infinite; }
+.animated .coach-reveal { animation: coach-reveal .28s ease-out both; }
+.animated .coach-evidence { animation-delay: .09s; }
+.animated .coach-questions { animation-delay: .17s; }
+.animated .coach-actions { animation-delay: .23s; }
+.animated .coach-saved { animation: coach-reveal .2s ease-out both; }
+@keyframes coach-waiting { to { opacity: .48; } }
+@keyframes coach-reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 .coach-focus {
   display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-top: 14px;
   padding: 12px 14px; border-left: 2px solid @amber; background: @surface-raised;
@@ -227,6 +254,7 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .coach-evidence blockquote p { margin: 0; }
 .coach-questions label { display: flex; align-items: start; gap: 9px; margin-top: 8px; overflow-wrap: anywhere; }
 .coach-actions .text-button { margin-left: 10px; }
+.coach-saved p { margin: 8px 0 0; }
 .coach-checks { margin-top: 16px; color: @muted; font-size: 13px; }
 .coach-checks summary { cursor: pointer; }
 @media (max-width: 950px) { .coach-grid { grid-template-columns: 1fr; } }
