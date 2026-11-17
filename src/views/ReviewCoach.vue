@@ -5,9 +5,15 @@
         <h1>AI 复习教练</h1>
         <p>从近期错题出发，找出这一轮该复习的内容。</p>
       </div>
-      <router-link :to="{ name: 'plan' }" class="button secondary">我的复习计划</router-link>
+      <div class="coach-header-actions">
+        <button class="button secondary" type="button" :aria-expanded="String(showHistory)" @click="showHistory = !showHistory">
+          <AppIcon name="clock" :size="16" />{{ showHistory ? "返回复习教练" : "建议历史" }}
+        </button>
+        <router-link :to="{ name: 'plan' }" class="button secondary">我的复习计划</router-link>
+      </div>
     </header>
-    <div class="coach-grid">
+    <ReviewCoachHistory v-if="showHistory" :key="result?.id || 'coach-history'" />
+    <div v-show="!showHistory" class="coach-grid">
       <form class="panel coach-form" @submit.prevent="preview">
         <h2>安排一次复习</h2>
         <p v-if="courseError" class="error-message" role="alert">{{ courseError }}</p>
@@ -97,24 +103,18 @@
 
 <script>
 import { state, notify } from "../store";
+import ReviewCoachHistory from "../components/ReviewCoachHistory.vue";
 import { loadCourses } from "../services/courses";
-import { runReviewCoach, saveCoachPlan, queueCoachDraft } from "../services/review-coach";
+import { COACH_STATUS_MESSAGES, runReviewCoach, saveCoachPlan, queueCoachDraft } from "../services/review-coach";
 import { motionAllowed } from "../utils/motion";
-
-const STATUSES = {
-  no_evidence: "这个知识点暂时没有未做过的题，也没有检索到能支持出题的讲义。可以补充讲义后再生成。",
-  no_history: "近 14 天没有仍答错的记录。可以先完成一次练习，教练会根据作答推荐复习内容。",
-  needs_link: "近 14 天还有未纠正的错题，但这些题目尚未关联有效的星图知识点。请先在题库补绑知识点。",
-  model_needed: "已找到讲义，但本课程没有未做过的题。配置出题模型后可生成草稿，也可以先手动添加。",
-  drafts: "已找到相关讲义，题库暂时没有未做过的题。可以根据讲义生成草稿，核对后再入库。",
-};
 
 export default {
   name: "ReviewCoach",
+  components: { ReviewCoachHistory },
   data: () => ({
     state, courseId: "", minutes: 20, durations: [10, 20, 30, 45], goal: "",
     waiting: true, courseError: "", error: "", busy: false, saving: false,
-    result: null, selected: [], savedTask: null,
+    result: null, selected: [], savedTask: null, showHistory: false,
   }),
   computed: {
     allowMotion() {
@@ -124,7 +124,7 @@ export default {
       return this.state.courses.filter((course) => course._remote && !course.archived);
     },
     statusText() {
-      return STATUSES[this.result?.status] || "";
+      return COACH_STATUS_MESSAGES[this.result?.status] || "";
     },
     nextRoute() {
       const { courseId, status, focus } = this.result;
@@ -211,6 +211,7 @@ export default {
 @import "../styles/tokens.less";
 
 .coach-grid { display: grid; grid-template-columns: minmax(0, 350px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.coach-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .coach-form, .coach-result { padding: 22px; min-width: 0; }
 .coach-form { display: grid; gap: 12px; }
 h2, h3 { margin: 0; }

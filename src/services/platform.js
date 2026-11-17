@@ -33,7 +33,11 @@ export const loadAttemptPage = (courseId, offset = 0) =>
       }),
   );
 export const askAccountAssistant = (body, signal) =>
-  accountRequest("/assistant/ask", { method: "POST", body, signal });
+  accountRequest("/assistant/ask", { method: "POST", body, signal, timeout: 55000 });
+export const prepareChatQuestions = (chatId, signal) =>
+  accountRequest("/assistant/history/" + encodeURIComponent(chatId) + "/question-drafts", {
+    method: "POST", signal, timeout: 55000,
+  });
 export function askAccountImage(courseId, question, file, requestId, signal) {
   const body = new FormData();
   body.append("courseId", courseId);

@@ -128,6 +128,9 @@
             <div class="message-body">
               <img v-if="message.image" class="message-image" :src="message.image" alt="本次提问的学习图片" />
               <p>{{ message.text }}</p>
+              <ChatQuestionDrafts v-if="message.questions?.length || message.canPrepareQuestions"
+                :turn-id="message.id" :course-id="courseId" :questions="message.questions"
+                :can-prepare="message.canPrepareQuestions" />
               <button v-for="(source, i) in message.sources" :key="i" class="source-chip"
                 :data-guide-target="i === 0 && message === messages[messages.length - 1] ? 'source' : null" @click="locate(source)">
                 <AppIcon name="file" :size="16" />{{ source.name }} · 原文片段
@@ -139,6 +142,13 @@
           </p>
         </div>
         <div class="chat-compose">
+          <div v-if="studyMaterial" class="study-actions" aria-label="按当前资料学习">
+            <span :title="studyMaterial.name">按当前资料</span>
+            <button v-for="action in studyActions" :key="action.label" type="button"
+              :disabled="!canRunStudyAction" @click="send(action.prompt, studyMaterial.id)">
+              {{ action.label }}
+            </button>
+          </div>
           <p class="small muted">
             <AppIcon name="info" :size="14" />
             可上传或粘贴单张截图、题目图或讲义图片。支持 PNG、JPEG、WebP，最多 5 MB。
@@ -180,6 +190,7 @@
 </template>
 <script>
 import UserAvatar from "../components/UserAvatar.vue";
+import ChatQuestionDrafts from "../components/ChatQuestionDrafts.vue";
 import { state, uid, notify } from "../store";
 import { locateSource, sourceFromRoute, sourceParagraphs } from "../utils/sourceLocation";
 import { motionAllowed } from "../utils/motion";
@@ -198,10 +209,24 @@ import {
 const IMAGE_QUESTION_PREFIX = "图片提问 · ";
 const IMAGE_LIMIT = 5 * 1024 * 1024;
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const STUDY_ACTIONS = [
+  { label: "梳理知识点", prompt: "请梳理这份资料的核心知识点和易错点。" },
+  { label: "生成练习题", prompt: "根据这份资料出三道练习题，答案和解析放在最后。" },
+  { label: "课外拓展", prompt: "请根据这份资料补充课外拓展。" },
+  { label: "全部生成", prompt: "请根据这份资料整理知识点、出三道练习题并补充课外拓展。" },
+];
+const CURRENT_MATERIAL = /(?:这份|这篇|当前|该|此|本份)(?:课程)?(?:资料|讲义|教材|文档|材料)/;
+
+function assistantMessage(answer) {
+  return {
+    id: answer.id || uid(), role: "assistant", text: answer.text, sources: answer.sources || [],
+    questions: answer.questions || [], canPrepareQuestions: !!answer.canPrepareQuestions,
+  };
+}
 
 export default {
   name: "Studio",
-  components: { UserAvatar },
+  components: { UserAvatar, ChatQuestionDrafts },
   data: () => ({
     state,
     courseId: "",
@@ -245,6 +270,16 @@ export default {
         this.remoteCourse &&
         this.materials.some((m) => m._remote && m.parseStatus === "ready")
       );
+    },
+    studyMaterial() {
+      return this.materials.find((item) => item.id === this.materialId && item._remote);
+    },
+    studyActions() {
+      return STUDY_ACTIONS;
+    },
+    canRunStudyAction() {
+      return this.remoteCourse && this.studyMaterial?.parseStatus === "ready"
+        && !this.busy && !this.loading && !this.imageAttachment;
     },
     canSend() {
       return !this.loading && !this.busy && this.remoteCourse
@@ -356,7 +391,7 @@ export default {
         if (revision !== this.loadRevision) return;
         this.messages = history.flatMap((row) => [
           { id: row.id + "-q", role: "user", text: row.question, sources: [] },
-          { id: row.id, role: "assistant", text: row.text, sources: row.sources },
+          assistantMessage(row),
         ]);
         this.answerMode = history.at(-1)?.mode || "";
         this.historyNeedsScroll = this.messages.length > 0;
@@ -450,7 +485,7 @@ export default {
       this.question = text;
       this.pendingImage = null;
     },
-    async send(text) {
+    async send(text, selectedMaterialId = null) {
       const attachment = this.imageAttachment;
       if ((!text.trim() && !attachment) || this.busy || this.loading || !this.remoteCourse) return;
       if (!attachment && !this.canAsk) {
@@ -458,6 +493,8 @@ export default {
         return;
       }
       const question = text.trim();
+      const materialId = selectedMaterialId
+        || (CURRENT_MATERIAL.test(question) ? this.studyMaterial?.id : null);
       if (attachment && question.length > this.questionLimit) {
         this.imageError = "附图问题最多可输入 " + this.questionLimit + " 个字符。";
         return;
@@ -481,7 +518,11 @@ export default {
       try {
         const answer = attachment
           ? await askAccountImage(this.courseId, question, attachment.file, attachment.requestId, this.controller.signal)
-          : await askAccountAssistant({ courseId: this.courseId, question }, this.controller.signal);
+          : await askAccountAssistant({
+            courseId: this.courseId,
+            question,
+            ...(materialId ? { materialId } : {}),
+          }, this.controller.signal);
         if (generation !== this.generation) return;
         if (attachment) {
           const message = this.messages.find((item) => item.id === messageId);
@@ -490,12 +531,7 @@ export default {
           this.imageAttachment = null;
         }
         this.answerMode = answer.mode || "";
-        this.messages.push({
-          id: answer.id || uid(),
-          role: "assistant",
-          text: answer.text,
-          sources: answer.sources || [],
-        });
+        this.messages.push(assistantMessage(answer));
         if (answer.sources?.length) recordGuideAction("answer", this.courseId);
         this.scrollToLatest();
       } catch (error) {
@@ -921,6 +957,33 @@ export default {
 
 .chat-compose .image-error {
   color: #ffb2ad;
+}
+
+.study-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+
+  span {
+    margin-right: 2px;
+    color: #9ab8cc;
+  }
+
+  button {
+    padding: 4px 8px;
+    border: 1px solid @border;
+    border-radius: 6px;
+    color: #bde5f8;
+    background: #0b273a;
+
+    &:hover:not(:disabled), &:focus-visible {
+      border-color: #47a6c2;
+      color: #7de8ff;
+    }
+  }
 }
 
 .image-attachment {
